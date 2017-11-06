@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Repo specific files
+data/
+
 # virtualenv
 .venv
 venv/

@@ -1,7 +1,6 @@
 numpy
 scipy
-tensorflow
-keras
+torch
 matplotlib
 Pillow
 h5py
