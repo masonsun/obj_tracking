@@ -6,15 +6,26 @@ __pycache__/
 # C extensions
 *.so
 
+# virtualenv
+.venv
+venv/
+ENV/
+pip-selfcheck.json
+
+# PyCharm
+.idea/
+
 # Distribution / packaging
 .Python
 env/
+bin/
 build/
 develop-eggs/
 dist/
 downloads/
 eggs/
 .eggs/
+include/
 lib/
 lib64/
 parts/
@@ -81,11 +92,6 @@ celerybeat-schedule
 
 # dotenv
 .env
-
-# virtualenv
-.venv
-venv/
-ENV/
 
 # Spyder project settings
 .spyderproject
