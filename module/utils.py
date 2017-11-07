@@ -1,5 +1,17 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+
+def fifo_update(x, y):
+    """
+    Update tensor with new input in a FIFO manner
+
+    :param x: original tensor
+    :param y: new input
+    :return: row-wise updated tensor
+    """
+    return torch.cat((y.view(1, -1), x[1:]), 0)
 
 
 class BinaryLoss(nn.Module):
@@ -9,7 +21,6 @@ class BinaryLoss(nn.Module):
     def forward(self, pos_score, neg_score):
         pos_loss = -F.log_softmax(pos_score)[:, 1]
         neg_loss = -F.log_softmax(neg_score)[:, 0]
-
         loss = pos_loss.sum() + neg_loss.sum()
         return loss
 

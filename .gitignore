@@ -8,6 +8,7 @@ __pycache__/
 
 # Repo specific files
 data/
+model/
 
 # virtualenv
 .venv
