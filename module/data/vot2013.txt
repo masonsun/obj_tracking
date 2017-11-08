@@ -1,0 +1,16 @@
+vot2013/cup
+vot2013/iceskater
+vot2013/juice
+vot2013/bicycle
+vot2013/bolt
+vot2013/car
+vot2013/david
+vot2013/diving
+vot2013/face
+vot2013/gymnastics
+vot2013/hand
+vot2013/jump
+vot2013/singer
+vot2013/sunshade
+vot2013/torus
+vot2013/woman
