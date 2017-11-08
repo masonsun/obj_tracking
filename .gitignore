@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 # Repo specific files
-data/
+data/*/
 model/
 
 # virtualenv
