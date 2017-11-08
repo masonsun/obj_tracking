@@ -7,7 +7,11 @@ opts = {
     'model_path': '../model/actnet-vot-otb.pth',
 
     # Supervised learning
-    'batch_frames': 8,
+    'batch_frames': 1,
+    'batch_pos': 1,
+    'batch_neg': 1,
+    'overlap_pos': [0.7, 1],
+    'overlap_neg': [0, 0.5],
 
     # Gradient descent
     'lr': 1e-4,

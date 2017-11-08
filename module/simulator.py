@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from PIL import Image
 
-from dataset import Dataset
+from data.dataset import Dataset
 from img_processing import crop_image
 
 
@@ -51,7 +51,7 @@ class Simulator(nn.Module, Dataset):
         if len(self.deltas) - 1 == a or self.cnt_actions >= self.max_actions:
             return self.bbox
 
-       # apply actions
+        # apply actions
         self.bbox += (np.asarray(self.deltas[a]) * self.alpha)
         return self.bbox
 

@@ -10,7 +10,8 @@ from utils import fifo_update
 
 
 class ActNet(nn.Module):
-    def __init__(self, model_path=None, k=10, num_actions=11):
+    def __init__(self, model_path=None, k=10, num_actions=11,
+                 epsilon=0.1, epsilon_decay=0.1):
         super(ActNet, self).__init__()
 
         # VGG-M conv layers
@@ -55,8 +56,8 @@ class ActNet(nn.Module):
         # Other parameters
         self.k = k
         self.num_actions = num_actions
-        self.epsilon = 0.1
-        self.epsilon_decay_rate = 0.1
+        self.epsilon = epsilon
+        self.epsilon_decay_rate = epsilon_decay
 
         # Load weights
         if model_path is not None:
