@@ -7,7 +7,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 import PIL
 
-from gen_datasetregion import *
+from gen_dataset_region import *
 
 #from model import *
 from options import *
@@ -31,7 +31,7 @@ def load_data(data_path, img_home):
         img_dir = os.path.join(img_home, seqname)
         dataset[k] = GenDatasetRegion(img_dir, img_list, gt, opts)
     return dataset
-        
+
     #image = Image.open(img_list[0]).convert('RGB')
 
 if __name__ == "__main__":
