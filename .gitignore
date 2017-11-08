@@ -9,7 +9,7 @@ __pycache__/
 # Repo specific files
 data/*/
 model/
-
+dataset/*/
 # virtualenv
 .venv
 venv/
