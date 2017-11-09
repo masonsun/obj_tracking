@@ -6,13 +6,18 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 from layers import LRN
-from utils import fifo_update
+from utils import fifo_update, crop_image
+from training.options import opts
 
 
 class ActNet(nn.Module):
-    def __init__(self, model_path=None, k=10, num_actions=11,
-                 epsilon=0.1, epsilon_decay=0.1):
+    def __init__(self, model_path=None):
         super(ActNet, self).__init__()
+
+        # Options
+        self.k = opts['num_past_actions']
+        self.num_actions = opts['num_actions']
+        self.max_actions = opts['max_actions']
 
         # VGG-M conv layers
         self.vggm_layers = nn.Sequential(OrderedDict([
@@ -35,7 +40,7 @@ class ActNet(nn.Module):
             ('fc5_a', nn.Sequential(nn.Dropout(0.5),
                                     nn.Linear(512, 512),
                                     nn.ReLU())),
-            ('fc6_a', nn.Sequential(nn.Linear(512, num_actions),
+            ('fc6_a', nn.Sequential(nn.Linear(512, self.num_actions),
                                     nn.Softmax()))]))
 
         # Critic
@@ -46,18 +51,37 @@ class ActNet(nn.Module):
             ('fc5_c', nn.Sequential(nn.Dropout(0.5),
                                     nn.Linear(512, 512),
                                     nn.ReLU())),
-            ('fc6_c', nn.Sequential(nn.Linear(512, num_actions),
+            ('fc6_c', nn.Sequential(nn.Linear(512, self.num_actions),
                                     nn.Softmax()))]))
 
-        # Past actions and q-values
-        self.past_actions = torch.zeros(k, num_actions)
-        self.past_qvalues = torch.zeros(k, num_actions)
+        # History
+        self.past_actions = torch.zeros(self.k, self.num_actions)
+        self.past_qvalues = torch.zeros(self.k, self.num_actions)
+        self.past_bboxes = []
 
-        # Other parameters
-        self.k = k
-        self.num_actions = num_actions
-        self.epsilon = epsilon
-        self.epsilon_decay_rate = epsilon_decay
+        # Hyperparameters
+        self.alpha = opts['alpha']
+        self.epsilon = opts['epsilon']
+        self.epsilon_decay_rate = opts['epsilon_decay']
+
+        # Simulation
+        self.terminate = False
+        self.cnt_actions = 0
+
+        # Actions
+        self.deltas = [
+            [-1, 0, 0, 0],   # left
+            [+1, 0, 0, 0],   # right
+            [0, -1, 0, 0],   # up
+            [0, +1, 0, 0],   # down
+            [0, 0, -1, 0],   # shorten width
+            [0, 0, +1, 0],   # elongate width
+            [0, 0, 0, -1],   # shorten height
+            [0, 0, 0, +1],   # elongate height
+            [0, 0, -1, -1],  # smaller
+            [0, 0, +1, +1],  # bigger
+            [0, 0, 0, 0],    # stop
+        ]
 
         # Load weights
         if model_path is not None:
@@ -138,41 +162,87 @@ class ActNet(nn.Module):
 
         # decay epsilon
         self.epsilon *= self.epsilon_decay_rate
-
         return one_hot_action
 
+    # Given the action, modify the bounding box accordingly
+    def apply_action_to_bbox(self, action, bbox):
+        # retrieve index of selected action
+        if isinstance(action, torch.Tensor):
+            a = action.numpy()
+        else:
+            try:
+                a = np.asarray(action)
+            except AttributeError:
+                print("Cannot handle action data type: {}".format(type(action)))
+                return bbox
+        a = int(np.argmax(a))
+
+        # stop
+        self.cnt_actions += 1
+        if len(self.deltas) - 1 == a or self.cnt_actions >= self.max_actions:
+            self.terminate = True
+            return bbox
+
+        # apply actions
+        self.bbox += (np.asarray(self.deltas[a]) * self.alpha)
+        self.past_bboxes.append(self.bbox)
+        return bbox
+
+    # Reset settings
+    def reset(self):
+        self.past_actions.fill_(0)
+        self.past_qvalues.fill_(0)
+        self.past_bboxes[:] = []
+        self.epsilon = opts['epsilon']
+        self.terminate = False
+        self.cnt_actions = 0
+
     # Forward pass of ActNet
-    def forward(self, x):
-        # vggm
-        for name, submodule in self.vggm_layers.named_children():
-            x = submodule(x)
-            # flatten
-            if name == 'conv3':
-                x = x.view(x.size(0), -1)
+    def forward(self, img, bbox):
+        # clear previous values
+        self.reset()
 
-        # critic
-        c = x.clone()
-        for name, submodule in self.critic_layers.named_children():
-            c = submodule(c)
-            # concatenate with past actions
-            if name == 'fc5_c':
-                c = torch.cat((c, self.past_actions), 1)
+        # get patch
+        assert len(bbox) == 4, 'Incorrect bounding box dimensions'
+        x = crop_image(img, bbox)
 
-        # update past q-values
-        self.past_qvalues = fifo_update(self.past_qvalues, c)
+        # tracking simulation
+        while not self.terminate:
+            # vggm
+            for name, submodule in self.vggm_layers.named_children():
+                x = submodule(x)
+                # flatten
+                if name == 'conv3':
+                    x = x.view(x.size(0), -1)
 
-        # actor
-        a = x.clone()
-        for name, submodule in self.actor_layers.named_children():
-            a = submodule(a)
-            # concatenate with past q-values
-            if name == 'fc5_a':
-                a = torch.cat((a, self.past_qvalues), 1)
+            # critic
+            c = x.clone()
+            for name, submodule in self.critic_layers.named_children():
+                c = submodule(c)
+                # concatenate with past actions
+                if name == 'fc5_c':
+                    c = torch.cat((c, self.past_actions), 1)
 
-        # select one-hot action via epsilon-greedy
-        a = self.epsilon_greedy(a)
+            # update past q-values
+            self.past_qvalues = fifo_update(self.past_qvalues, c)
 
-        # update past actions
-        self.past_actions = fifo_update(self.past_actions, a)
+            # actor
+            a = x.clone()
+            for name, submodule in self.actor_layers.named_children():
+                a = submodule(a)
+                # concatenate with past q-values
+                if name == 'fc5_a':
+                    a = torch.cat((a, self.past_qvalues), 1)
 
-        return a
+            # select one-hot action via epsilon-greedy
+            a = self.epsilon_greedy(a)
+
+            # update past actions
+            self.past_actions = fifo_update(self.past_actions, a)
+
+            # get new patch from selected action
+            bbox = self.apply_action_to_bbox(a, bbox)
+            x = crop_image(img, bbox)
+
+        # return final patch and all bounding boxes
+        return x, self.past_bboxes

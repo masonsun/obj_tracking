@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pickle
-from collections import OrderedDict
 
 seq_home = '../dataset/'
 seqlist_path = 'data/vot2013.txt'
