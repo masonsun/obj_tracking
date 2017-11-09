@@ -1,15 +1,8 @@
 import os
-import sys
 import numpy as np
-from PIL import Image
-
-import torch
 import torch.utils.data as data
-
-sys.path.insert(0,'../module')
-#from sample_generator import *
-from utils import *
-
+from PIL import Image
+from module.utils import crop_image
 
 
 class GenDatasetRegion(data.Dataset):
@@ -18,26 +11,25 @@ class GenDatasetRegion(data.Dataset):
         self.img_list = np.array([os.path.join(img_dir, img) for img in img_list])
         self.gt = gt
 
-        self.batch_frames = 1 #opts['batch_frames']
+        self.batch_frames = opts['batch_frames']
         self.batch_pos = opts['batch_pos']
         #self.batch_neg = opts['batch_neg']
 
         #self.overlap_pos = opts['overlap_pos']
         self.overlap_neg = opts['overlap_neg']
 
-        self.crop_size = 107 #opts['img_size']
+        self.crop_size = opts['img_size']
         self.padding = opts['padding']
 
         self.index = np.random.permutation(len(self.img_list))
         self.pointer = 0
 
-        image = Image.open(self.img_list[0]).convert('RGB')
+        self.image = Image.open(self.img_list[0]).convert('RGB')
         #self.pos_generator = SampleGenerator('gaussian', image.size, 0.1, 1.2, 1.1, True)
         #self.neg_generator = SampleGenerator('uniform', image.size, 1, 1.2, 1.1, True)
 
     def __iter__(self):
         return self
-
 
     # generate next frame's image and gt bbox
     def next_frame(self):
@@ -51,20 +43,15 @@ class GenDatasetRegion(data.Dataset):
 
         pos_regions = np.empty((0,3,self.crop_size,self.crop_size))
 
-
         for i, (img_path, bbox) in enumerate(zip(self.img_list[idx], self.gt[idx])):
             image = Image.open(img_path).convert('RGB')
             image = np.asarray(image)
 
             #n_pos = (self.batch_pos - len(pos_regions)) // (self.batch_frames - i)
-
             #pos_examples = gen_samples(self.pos_generator, bbox, n_pos, overlap_range=self.overlap_pos)
-
-
             #pos_regions = np.concatenate((pos_regions, self.extract_regions(image, pos_examples)),axis=0)
 
         #pos_regions = torch.from_numpy(pos_regions).float()
-
         return image, bbox
 
     def extract_regions(self, image, samples):

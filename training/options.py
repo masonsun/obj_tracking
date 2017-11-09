@@ -15,6 +15,7 @@ opts = {
 
     # Gradient descent
     'lr': 1e-4,
+    'lr_multiplier': {'fc': 1e1},
     'w_decay': 5e-4,
     'momentum': 0.9,
     'grad_clip': 10,
@@ -22,6 +23,8 @@ opts = {
 
     # ActNet
     'trainable_layers': ['conv', 'fc'],
+    'num_past_actions': 10,
+    'num_actions': 11,
     'img_size': 107,
     'padding': 16,
 
@@ -29,5 +32,6 @@ opts = {
     'epsilon': 0.1,
     'epsilon_decay': 0.1,
     'max_actions': 20,
-    'alpha': 0.03
+    'alpha': 0.03,
+    'iou_criterion': 0.7
 }
