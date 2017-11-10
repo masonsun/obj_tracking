@@ -14,12 +14,13 @@ opts = {
     'overlap_neg': [0, 0.5],
 
     # Gradient descent
+    'actor_lr': 1e-3,
+    'critic_lr': 1e-2,
     'lr': 1e-4,
     'lr_multiplier': {'fc': 1e1},
     'w_decay': 5e-4,
     'momentum': 0.9,
     'grad_clip': 10,
-    'n_cycles': 50,
 
     # ActNet
     'trainable_layers': ['conv', 'fc'],
@@ -33,5 +34,6 @@ opts = {
     'epsilon_decay': 0.1,
     'max_actions': 20,
     'alpha': 0.03,
-    'iou_criterion': 0.7
+    'iou_criterion': 0.7,
+    'reward_discount': 0.99
 }
