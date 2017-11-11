@@ -5,6 +5,49 @@ from scipy.misc import imresize
 from training.options import opts
 
 
+def apply_action_to_bbox(action, bbox, alpha=opts['alpha']):
+    """
+    Given the action, modify the bounding box accordingly
+
+    :param action: one-hot encoded action
+    :param bbox: bounding box [x,y,w,h]
+    :param alpha: scaling factor
+    :return: new bounding box, boolean indicating terminating action
+    """
+    # Actions
+    deltas = [
+        [-1, 0, 0, 0],   # left
+        [+1, 0, 0, 0],   # right
+        [0, -1, 0, 0],   # up
+        [0, +1, 0, 0],   # down
+        [0, 0, -1, 0],   # shorten width
+        [0, 0, +1, 0],   # elongate width
+        [0, 0, 0, -1],   # shorten height
+        [0, 0, 0, +1],   # elongate height
+        [0, 0, -1, -1],  # smaller
+        [0, 0, +1, +1],  # bigger
+        [0, 0, 0, 0],    # stop
+    ]
+
+    # retrieve index of selected action
+    if isinstance(action, torch.Tensor):
+        a = action.numpy()
+    else:
+        try:
+            a = np.asarray(action)
+        except AttributeError:
+            print("Cannot handle action data type: {}".format(type(action)))
+            return bbox
+    # stop
+    a = int(np.argmax(a))
+    if len(deltas) - 1 == a:
+        return bbox, True
+
+    # apply actions
+    bbox += (np.asarray(deltas[a]) * alpha)
+    return bbox, False
+
+
 def fifo_update(x, y):
     """
     Update tensor with new input in a FIFO manner

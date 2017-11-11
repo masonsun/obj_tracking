@@ -2,6 +2,7 @@ import os
 import pickle
 import numpy as np
 from datetime import datetime as dt
+from collections import namedtuple
 
 import torch
 import torch.optim as optim
@@ -9,8 +10,9 @@ from torch.autograd import Variable
 
 from gen_dataset_region import GenDatasetRegion
 from options import opts
+from module.utils import crop_image, apply_action_to_bbox
 from module.actnet import ActNet
-from module.metrics import BinaryLoss, Precision
+from module.metrics import overlap_ratio, get_reward
 
 SEQ_HOME = '../dataset'
 SEQ_LIST_PATH = 'data/vot2013.txt'
@@ -32,29 +34,10 @@ def load_data(data_path, img_home):
     return dataset
 
 
-def set_optimizer(model, vary_lr=False,
-                  lr_base=opts['lr'], lr_mult=opts['lr_multiplier'],
-                  momentum=opts['momentum'], w_decay=opts['w_decay']):
-    # same setting across whole network
-    if not vary_lr:
-        return optim.RMSprop(model.parameters(), lr=lr_base, momentum=momentum, weight_decay=w_decay)
-
-    # vary learning rate for different components
-    params = model.get_trainable_params()
-    param_list = []
-    for k, p in params.items():
-        lr = lr_base
-        # increase learning rate if need be
-        for l, m in lr_mult.items():
-            if k.startswith(l):
-                lr = lr_base * m
-        param_list.append({'params': [p], 'lr': lr})
-    return optim.RMSprop(param_list, lr=lr, momentum=momentum, weight_decay=w_decay)
-
-
 def train_actnet():
     # data
     dataset = load_data(OUTPUT_PATH, SEQ_HOME)
+    transition = namedtuple('transition', ['state', 'action', 'reward', 'next_state', 'done'])
 
     # model
     model = ActNet(model_path=opts['vgg_model_path'])
@@ -64,31 +47,63 @@ def train_actnet():
     model.set_trainable_params(opts['trainable_layers'])
 
     # model evaluation
-    criterion = BinaryLoss()
-    evaluator = Precision()
-    optimizer = set_optimizer(model, vary_lr=False)
+    actor_loss =
+    critic_loss =
 
     # training loop
-    best_prec = 0.0
-    for i in range(int(opts['n_cycles'])):
-        print("===== Cycle {} =====".format(i+1))
+    k_list = np.random.permutation(len(dataset))
+    for j, k in enumerate(k_list):
+        print("Class {}/{}".format(k+1, len(k_list)))
 
-        k_list = np.random.permutation(len(dataset))
-        prec = np.zeros(len(dataset))
+        for _ in range(len(dataset[k].img_list)):
+            img, bbox, gt = dataset[k].next_frame()
+            img, bbox, gt = Variable(img), Variable(bbox), Variable(gt)
+            if torch.cuda.is_available() and opts['gpu']:
+                img, bbox, gt = img.cuda(), bbox.cuda(), gt.cuda()
+
+            for i in range(opts['max_actions']):
+                episode = []
+
+                # take a step
+                patch = crop_image(img, bbox)
+                action = model(patch, eval_policy=True)
+                bbox, done = apply_action_to_bbox(action, bbox)
+                new_patch = crop_image(img, bbox)
+                reward = 0 if not done else get_reward(overlap_ratio(bbox, gt))
+
+                # keep track of transitions
+                episode.append(transition(
+                    state=patch, action=action, reward=reward, next_state=new_patch, done=done))
+
+                # calculate TD target
+                value = model(new_patch, eval_policy=False)
+                td_target = reward + opts['reward_discount'] * value
+                td_error = td_target - model(patch, eval_policy=False)
+
+                # update value estimator
+                model.zero_grad()
+
+
+
+
+                # update policy estimator
+                # use the TD error as our advantage estimate
+
+
+                if done:
+                    break
+
+
+    # model evaluation
+    criterion = BinaryLoss()
+    evaluator = Precision()
+    optimizer = optim.RMSprop(model.parameters(), lr=opts['lr'], momentum=opts['momentum'], weight_decay=opts['w_decay'])
+
+    prec = np.zeros(len(dataset))
+    for i in range(int(opts['n_cycles'])):
 
         for j, k in enumerate(k_list):
             start_time = dt.now()
-            img, bbox = dataset[k].next_frame()
-
-            img, bbox = Variable(img), Variable(bbox)
-            if torch.cuda.is_available() and opts['gpu']:
-                img, bbox = img.cuda(), bbox.cuda()
-
-            final_patch, past_bboxes = model(torch.unsqueeze(img, 0))
-
-            # TO-DO:
-            # 1. Use final_patch to calculate reward based on IoU with ground-truth bounding box
-            # 2. Define a loss function to back-prop (BinaryLoss is not correct)
 
             prec[k] = evaluator()  # modify
             loss = criterion()     # modify

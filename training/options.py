@@ -14,10 +14,7 @@ opts = {
     'overlap_neg': [0, 0.5],
 
     # Gradient descent
-    'actor_lr': 1e-3,
-    'critic_lr': 1e-2,
     'lr': 1e-4,
-    'lr_multiplier': {'fc': 1e1},
     'w_decay': 5e-4,
     'momentum': 0.9,
     'grad_clip': 10,

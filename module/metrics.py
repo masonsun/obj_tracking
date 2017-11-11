@@ -30,7 +30,7 @@ def overlap_ratio(rect1, rect2):
     return iou
 
 
-def reward(iou):
+def get_reward(iou):
     """
     Reward function determined by IoU
 
