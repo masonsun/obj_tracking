@@ -30,6 +30,7 @@ def apply_action_to_bbox(action, bbox, alpha=opts['alpha']):
     ]
 
     # retrieve index of selected action
+    assert action.sum() == 1.0, "Not one-hot encoded action"
     if isinstance(action, torch.Tensor):
         a = action.numpy()
     else:
@@ -46,6 +47,26 @@ def apply_action_to_bbox(action, bbox, alpha=opts['alpha']):
     # apply actions
     bbox += (np.asarray(deltas[a]) * alpha)
     return bbox, False
+
+
+def epsilon_greedy(action, epsilon, num_actions=opts['num_actions']):
+    """
+    Select one-hot encoded action from action probabilities using epsilon-greedy
+
+    :param action: action probability vector
+    :param epsilon: probability of exploring
+    :return: one-hot encoded action
+    """
+    # assign probabilities to each action
+    explore_prob = epsilon / num_actions
+    p = np.full(num_actions, explore_prob)
+    p[np.argmax(action.numpy())] = 1 - epsilon + explore_prob
+
+    # one-hot encoding of selected action
+    one_hot_action = torch.zeros(num_actions)
+    index = np.random.choice(np.arange(num_actions), p=p)
+    one_hot_action[index] = 1
+    return one_hot_action
 
 
 def fifo_update(x, y):

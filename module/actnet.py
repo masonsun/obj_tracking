@@ -5,6 +5,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from layers import LRN
 from training.options import opts
 
@@ -15,21 +16,9 @@ class ActNet(nn.Module):
 
         # Parameters
         self.img_size = opts['img_size']
-        self.k = opts['num_past_actions']
         self.num_actions = opts['num_actions']
-        self.max_actions = opts['max_actions']
 
-        # Policy estimation
-        self.policy_state = torch.Tensor(3, self.img_size, self.img_size)
-        self.policy_target = torch.Tensor(self.num_actions)
-        self.action = torch.Tensor(self.num_actions)
-
-        # Value estimation
-        self.value_state = torch.Tensor(self.num_actions)
-        self.value_target = torch.Tensor(self.num_actions)
-        self.value_estimate = torch.Tensor(self.num_actions)
-
-        # VGG-M layers
+        # VGG-M conv
         self.vggm_layers = nn.Sequential(OrderedDict([
             ('conv1', nn.Sequential(nn.Conv2d(3, 96, kernel_size=7, stride=2),
                                     nn.ReLU(),
@@ -42,27 +31,16 @@ class ActNet(nn.Module):
             ('conv3', nn.Sequential(nn.Conv2d(256, 512, kernel_size=3, stride=1),
                                     nn.ReLU()))]))
 
-        # Actor
-        self.actor_layers = nn.Sequential(OrderedDict([
-            ('fc4_a', nn.Sequential(nn.Dropout(0.5),
-                                    nn.Linear(512 * 3 * 3, 512),
-                                    nn.ReLU())),
-            ('fc5_a', nn.Sequential(nn.Dropout(0.5),
-                                    nn.Linear(512, 512),
-                                    nn.ReLU())),
-            ('fc6_a', nn.Sequential(nn.Linear(512, self.num_actions),
-                                    nn.Softmax()))]))
+        # Actor-Critic
+        self.lstm = nn.LSTMCell(512 * 3 * 3, 512)
+        self.actor = nn.Linear(512, self.num_actions)
+        self.critic = nn.Linear(512, 1)
 
-        # Critic
-        self.critic_layers = nn.Sequential(OrderedDict([
-            ('fc4_c', nn.Sequential(nn.Dropout(0.5),
-                                    nn.Linear(512 * 3 * 3, 512),
-                                    nn.ReLU())),
-            ('fc5_c', nn.Sequential(nn.Dropout(0.5),
-                                    nn.Linear(512, 512),
-                                    nn.ReLU())),
-            ('fc6_c', nn.Sequential(nn.Linear(512, self.num_actions),
-                                    nn.Softmax()))]))
+        # Set biases to zero
+        self.actor.bias.data.fill_(0)
+        self.critic.bias.data.fill_(0)
+        self.lstm.bias_ih.data.fill_(0)
+        self.lstm.bias_hh.data.fill_(0)
 
         # Load weights
         if model_path is not None:
@@ -80,10 +58,10 @@ class ActNet(nn.Module):
     # Load weights for the whole network
     def load_model(self, model_path):
         states = torch.load(model_path)
-        vggm, actor, critic = states['vggm_layers'], states['actor_layers'], states['critic_layers']
-        self.vggm_layers.load_state_dict(vggm)
-        self.actor_layers.load_state_dict(actor)
-        self.critic_layers.load_state_dict(critic)
+        self.vggm_layers.load_state_dict(states['vggm_layers'])
+        self.lstm.load_state_dict(states['lstm'])
+        self.actor.load_state_dict(states['actor'])
+        self.critic.load_state_dict(states['critic'])
 
     # Mainly to load VGG-M's pre-trained conv weights
     def load_mat_model(self, mat_file):
@@ -92,7 +70,7 @@ class ActNet(nn.Module):
         for i in range(3):
             weight, bias = mat_layers[i * 4]['weights'].item()[0]
             self.vggm_layers[i][0].weight.data = torch.from_numpy(np.transpose(weight, (3, 2, 0, 1)))
-            self.vgg_mlayers[i][0].bias.data = torch.from_numpy(bias[:, 0])
+            self.vggm_layers[i][0].bias.data = torch.from_numpy(bias[:, 0])
 
     # Build a dictionary of all parameters in the network
     def build_params_dict(self):
@@ -129,36 +107,16 @@ class ActNet(nn.Module):
                 p[i] = param
         return p
 
-    # Select one-hot encoded action from action probabilities using epsilon-greedy
-    def epsilon_greedy(self, action, epsilon):
-        # assign probabilities to each action
-        explore_prob = epsilon / self.num_actions
-        p = np.full(self.num_actions, explore_prob)
-        p[np.argmax(action.numpy())] = 1 - epsilon + explore_prob
-
-        # one-hot encoding of selected action
-        one_hot_action = torch.zeros(self.num_actions)
-        index = np.random.choice(np.arange(self.num_actions), p=p)
-        one_hot_action[index] = 1
-        return one_hot_action
-
     # Forward pass of ActNet
-    def forward(self, x, eval_policy=True):
-        # vggm
+    def forward(self, x):
+        # inputs
+        x, (hx, cx) = x
+        # vgg-m
         for name, submodule in self.vggm_layers.named_children():
             x = submodule(x)
             if name == 'conv3':
-                x = x.view(x.size(0), -1)
-        # actor
-        if eval_policy:
-            a = x.clone()
-            for name, submodule in self.actor_layers.named_children():
-                a = submodule(a)
-            a = self.epsilon_greedy(a)
-            return a
-        # critic
-        else:
-            c = x.clone()
-            for name, submodule in self.critic_layers.named_children():
-                c = submodule(c)
-            return c
+                x = x.view(-1, 512 * 3 * 3)
+        # actor-critic
+        hx, cx = self.lstm(x, (hx, cx))
+        x = hx
+        return self.critic(x), F.Softmax(self.actor(x)), (hx, cx)
