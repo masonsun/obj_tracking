@@ -5,7 +5,6 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from layers import LRN
 from training.options import opts
 
@@ -109,6 +108,8 @@ class ActNet(nn.Module):
 
     # Forward pass of ActNet
     def forward(self, x):
+        assert len(x) == 2 and len(x[1]) == 2, 'wrong number of inputs'
+        assert x[0].shape == (1, 3, self.img_size, self.img_size), 'wrong img dimensions'
         # inputs
         x, (hx, cx) = x
         # vgg-m
@@ -119,4 +120,4 @@ class ActNet(nn.Module):
         # actor-critic
         hx, cx = self.lstm(x, (hx, cx))
         x = hx
-        return self.critic(x), F.Softmax(self.actor(x)), (hx, cx)
+        return self.critic(x), self.actor(x), (hx, cx)

@@ -32,5 +32,11 @@ opts = {
     'max_actions': 20,
     'alpha': 0.03,
     'iou_criterion': 0.7,
-    'reward_discount': 0.99
+    'reward_discount': 0.99,
+
+    # GAE
+    'gamma': 0.99,
+    'tau': 0.99,
+    'entropy_coeff': 0.99,
+    'value_loss_coeff': 0.99
 }

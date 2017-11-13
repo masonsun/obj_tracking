@@ -5,7 +5,43 @@ from scipy.misc import imresize
 from training.options import opts
 
 
-def apply_action_to_bbox(action, bbox, alpha=opts['alpha']):
+def overlap_ratio(rect1, rect2):
+    """
+    Compute overlap ratio based on IoU between two bounding boxes
+
+    :param rect1: 1d array of [x,y,w,h] or 2d array of N*[x,y,w,h]
+    :param rect2: same
+    :return: IoU
+    """
+
+    if rect1.ndim == 1:
+        rect1 = rect1[None, :]
+    if rect2.ndim == 1:
+        rect2 = rect2[None, :]
+
+    left = np.maximum(rect1[:, 0], rect2[:, 0])
+    right = np.minimum(rect1[:, 0] + rect1[:, 2], rect2[:, 0] + rect2[:, 2])
+    top = np.maximum(rect1[:, 1], rect2[:, 1])
+    bottom = np.minimum(rect1[:, 1] + rect1[:, 3], rect2[:, 1] + rect2[:, 3])
+
+    intersect = np.maximum(0, right - left) * np.maximum(0, bottom - top)
+    union = rect1[:, 2] * rect1[:, 3] + rect2[:, 2] * rect2[:, 3] - intersect
+    iou = np.clip(intersect / union, 0, 1)
+    return iou
+
+
+def get_reward(iou):
+    """
+    Reward function determined by IoU
+    :param iou: IoU value between 0 and 1, inclusively
+    :return: scalar reward
+    """
+    if iou > opts['iou_criterion']:
+        return 1
+    return -1
+
+
+def get_bbox(action, bbox, alpha=opts['alpha']):
     """
     Given the action, modify the bounding box accordingly
 
@@ -51,11 +87,12 @@ def apply_action_to_bbox(action, bbox, alpha=opts['alpha']):
 
 def epsilon_greedy(action, epsilon, num_actions=opts['num_actions']):
     """
-    Select one-hot encoded action from action probabilities using epsilon-greedy
+    Select one-hot encoded action using epsilon-greedy
 
-    :param action: action probability vector
+    :param action: action probability vector (torch variable)
     :param epsilon: probability of exploring
-    :return: one-hot encoded action
+    :param num_actions: number of actions
+    :return: one-hot encoded action and its index (torch variables)
     """
     # assign probabilities to each action
     explore_prob = epsilon / num_actions
@@ -66,7 +103,7 @@ def epsilon_greedy(action, epsilon, num_actions=opts['num_actions']):
     one_hot_action = torch.zeros(num_actions)
     index = np.random.choice(np.arange(num_actions), p=p)
     one_hot_action[index] = 1
-    return one_hot_action
+    return one_hot_action, torch.LongTensor[index]
 
 
 def fifo_update(x, y):
