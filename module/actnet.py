@@ -73,7 +73,7 @@ class ActNet(nn.Module):
 
     # Build a dictionary of all parameters in the network
     def build_params_dict(self):
-        all_layers = [self.vggm_layers, self.actor_layers, self.critic_layers]
+        all_layers = [self.vggm_layers, self.actor, self.critic]
         for layers in all_layers:
             for name, submodule in layers.named_children():
                 for child in submodule.children():
@@ -109,7 +109,6 @@ class ActNet(nn.Module):
     # Forward pass of ActNet
     def forward(self, x):
         assert len(x) == 2 and len(x[1]) == 2, 'wrong number of inputs'
-        assert x[0].shape == (1, 3, self.img_size, self.img_size), 'wrong img dimensions'
         # inputs
         x, (hx, cx) = x
         # vgg-m

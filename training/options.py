@@ -6,7 +6,9 @@ opts = {
 
     # Paths
     'vgg_model_path': '../model/imagenet-vgg-m.mat',
-    'model_path': '../model/actnet-vot-otb.pth',
+    'model_sl_path': '../model/actnet-sl.pth',
+    'model_rl_path': '../model/actnet-rl.pth',
+    'lstm_path': '../model/lstm.pth',
 
     # Supervised learning
     'batch_frames': 1,

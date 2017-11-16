@@ -37,8 +37,8 @@ def train_rl():
                                            'reward', 'next_state', 'done'])
 
     # model
-    assert opts['model_path'].split('.')[-1] == '.pth', 'Use pre-trained weights.'
-    model = ActNet(model_path=opts['model_path'])
+    assert opts['model_sl_path'].split('.')[-1] == '.pth', 'Use pre-trained weights.'
+    model = ActNet(model_path=opts['model_sl_path'])
 
     if opts['gpu']:
         model = model.cuda()
@@ -50,8 +50,13 @@ def train_rl():
                               momentum=opts['momentum'], weight_decay=opts['w_decay'])
 
     # initializations
-    cx = Variable(torch.zeros(1, 256))
-    hx = Variable(torch.zeros(1, 256))
+    try:
+        cx, hx = torch.load(opts['lstm_path'])
+        cx, hx = Variable(cx), Variable(hx)
+    except IOError:
+        print('LSTM state values not found. Initializing as zero valued tensors')
+        cx = Variable(torch.zeros(1, 512))
+        hx = Variable(torch.zeros(1, 512))
 
     # training loop
     k_list = np.random.permutation(len(dataset))
@@ -150,8 +155,8 @@ def train_rl():
             if opts['use_gpu']:
                 model = model.cpu()
 
-            print("Saved model to {}".format(opts['model_path']))
-            torch.save(states, opts['model_path'])
+            print("Saved model to {}".format(opts['model_rl_path']))
+            torch.save(states, opts['model_rl_path'])
 
             if opts['use_gpu']:
                 model = model.cuda()
