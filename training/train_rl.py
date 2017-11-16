@@ -1,5 +1,3 @@
-import os
-import pickle
 import numpy as np
 from collections import namedtuple
 from datetime import datetime as dt
@@ -9,8 +7,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-from gen_dataset_region import GenDatasetRegion
 from options import opts
+from load_data import load_data
 from module.utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_image
 from module.actnet import ActNet
 
@@ -20,22 +18,8 @@ OUTPUT_PATH = 'data/vot2013.pkl'
 
 np.random.seed(123)
 torch.manual_seed(456)
-torch.cuda.manual_seed(789)
-
-
-def load_data(data_path, img_home):
-    with open(data_path, 'rb') as f:
-        data = pickle.load(f)
-
-    K = len(data)
-    print("Data length: {}".format(K))
-    dataset = [None] * K
-
-    for k, (seq_name, seq) in enumerate(data.items()):
-        img_list, gt = seq['images'], seq['gt']
-        img_dir = os.path.join(img_home, seq_name)
-        dataset[k] = GenDatasetRegion(img_dir, img_list, gt, opts)
-    return dataset
+if opts['gpu']:
+    torch.cuda.manual_seed(789)
 
 
 def ensure_shared_grads(model, shared_model):
@@ -46,18 +30,18 @@ def ensure_shared_grads(model, shared_model):
         shared_param._grad = param.grad
 
 
-def train_actnet():
+def train_rl():
     # data
-    dataset = load_data(OUTPUT_PATH, SEQ_HOME)
+    dataset = load_data(OUTPUT_PATH, SEQ_HOME, 'RL')
     transition = namedtuple('transition', ['state', 'action', 'log_prob', 'entropy',
                                            'reward', 'next_state', 'done'])
 
     # model
-    model = ActNet(model_path=opts['vgg_model_path'])
+    assert opts['model_path'].split('.')[-1] == '.pth', 'Use pre-trained weights.'
+    model = ActNet(model_path=opts['model_path'])
 
-    if torch.cuda.is_available() and opts['gpu']:
+    if opts['gpu']:
         model = model.cuda()
-    model.set_trainable_params(opts['trainable_layers'])
     model.train()
 
     # evaluation
@@ -79,7 +63,7 @@ def train_actnet():
         for f in range(data_length):
             img, bbox, gt = dataset[k].next_frame()
             img, bbox, gt = Variable(img), Variable(bbox), Variable(gt)
-            if torch.cuda.is_available() and opts['gpu']:
+            if opts['gpu']:
                 img, bbox, gt = img.cuda(), bbox.cuda(), gt.cuda()
 
             state = Variable(crop_image(img, bbox))
@@ -163,15 +147,15 @@ def train_actnet():
                 'critic': model.critic.state_dict()
             }
 
-            if opts['use_gpu'] and torch.cuda.is_available():
+            if opts['use_gpu']:
                 model = model.cpu()
 
             print("Saved model to {}".format(opts['model_path']))
             torch.save(states, opts['model_path'])
 
-            if opts['use_gpu'] and torch.cuda.is_available():
+            if opts['use_gpu']:
                 model = model.cuda()
 
 
 if __name__ == '__main__':
-    train_actnet()
+    train_rl()

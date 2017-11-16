@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import torch.utils.data as data
+import torchvision.transforms as transforms
 from PIL import Image
 from module.utils import crop_image
 
@@ -27,6 +28,9 @@ class GenDatasetRegion(data.Dataset):
         self.image = Image.open(self.img_list[0]).convert('RGB')
         #self.pos_generator = SampleGenerator('gaussian', image.size, 0.1, 1.2, 1.1, True)
         #self.neg_generator = SampleGenerator('uniform', image.size, 1, 1.2, 1.1, True)
+
+        self.transform = transforms.Compose([transforms.ToTensor()])
+
 
     def __iter__(self):
         return self
@@ -57,7 +61,9 @@ class GenDatasetRegion(data.Dataset):
     def extract_regions(self, image, samples):
         regions = np.zeros((len(samples),self.crop_size,self.crop_size,3),dtype='uint8')
         for i, sample in enumerate(samples):
-            regions[i] = crop_image(image, sample, self.crop_size, self.padding, True)
+
+            regions[i] = self.transform(
+                crop_image(image, sample, self.crop_size, self.padding, True))
 
         regions = regions.transpose(0,3,1,2)
         regions = regions.astype('float32') - 128.

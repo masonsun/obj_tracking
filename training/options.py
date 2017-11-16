@@ -1,6 +1,8 @@
+import torch
+
 opts = {
     # Configurations
-    'gpu': True,
+    'gpu': True and torch.cuda.is_available(),
 
     # Paths
     'vgg_model_path': '../model/imagenet-vgg-m.mat',
@@ -10,6 +12,7 @@ opts = {
     'batch_frames': 1,
     'batch_pos': 1,
     'batch_neg': 1,
+    'batch_size': 8,
     'overlap_pos': [0.7, 1],
     'overlap_neg': [0, 0.5],
 
@@ -40,3 +43,8 @@ opts = {
     'entropy_coeff': 0.99,
     'value_loss_coeff': 0.99
 }
+
+kwargs = {
+    'num_workers': 1,
+    'pin_memory': True
+} if opts['gpu'] else {}
