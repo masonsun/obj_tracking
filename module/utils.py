@@ -2,6 +2,9 @@ import numpy as np
 import torch
 from PIL import Image
 from scipy.misc import imresize
+
+import sys
+sys.path.insert(0,'/Users/RobinYen/Documents/DQN/actnet/obj_tracking/')
 from training.options import opts
 
 

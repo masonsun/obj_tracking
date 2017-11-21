@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-from layers import LRN
+from module.layers import LRN
 from training.options import opts
 
 

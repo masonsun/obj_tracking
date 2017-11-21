@@ -1,3 +1,6 @@
+import os
+print(os.getcwd())
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,15 +8,19 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
+import sys
+sys.path.insert(0,'/Users/RobinYen/Documents/DQN/actnet/obj_tracking/module')
+
 from options import opts, kwargs
 from load_data import load_data
-from module.utils import crop_image
-from module.actnet import ActNet
+from utils import crop_image
+from actnet import ActNet
+
 
 # File paths
-SEQ_HOME = '../dataset'
-SEQ_LIST_PATH = 'data/vot2013.txt'
-OUTPUT_PATH = 'data/vot2013.pkl'
+SEQ_HOME = './dataset'
+SEQ_LIST_PATH = '/Users/RobinYen/Documents/DQN/actnet/obj_tracking/training/data/vot2013.txt'
+OUTPUT_PATH = '/Users/RobinYen/Documents/DQN/actnet/obj_tracking/training/data/vot2013.pkl'
 
 # Frequency of prints
 LOG_INTERVAL = 50
@@ -55,26 +62,38 @@ def preprocess(data):
     return x, y
 
 
-def train_sl(train_loader, model, optimizer):
+def train_sl(train_loader, model, optimizer, steps_per_epoch):
     model.train()
     cx, hx = None, None
-    for batch_index, (data, target) in enumerate(train_loader):
-        if opts['gpu']:
-            data, target = data.cuda(), target.cuda()
-        data, target = Variable(data), Variable(target)
+    for batch_index in range(steps_per_epoch):
 
+        pos_data, pos_labels, neg_data, neg_labels = train_loader.next_frame()
+
+        data = torch.cat((pos_data, neg_data), axis=0)
+        labels = torch.cat((pos_labels, neg_labels), axis=0)
+        shuffled_idx = torch.randperm(len(data))
+        data = data[shuffled_idx]
+        labels = labes[shuffled_idx]
+
+        if opts['gpu']:
+            data, target = data.cuda(), labels.cuda()
+            data, target = Variable(data), Variable(labels)
+
+        
         optimizer.zero_grad()
         output, (hx, cx) = model(data)
-        loss = nn.BCEWithLogitsLoss(output, target)
+        loss = nn.BCEWithLogitsLoss(output, labels)
         loss.backward()
         optimizer.step()
 
+    return cx, hx
+'''
         if batch_index % LOG_INTERVAL == 0:
             print('Train epoch: {} [{}/{} ({:.0f}%)]\t Loss: {:.6f}'.format(
                 epoch, batch_index * len(data), len(train_loader.dataset),
                 100 * batch_index / len(train_loader), loss.data[0]))
+'''
 
-    return cx, hx
 
 
 def test_sl(test_loader, model):
@@ -103,19 +122,28 @@ def test_sl(test_loader, model):
 if __name__ == '__main__':
     # data
     # disjoint list of tuples (img, bbox, {0,1})
-    train_data, test_data = load_data(OUTPUT_PATH, SEQ_HOME, 'SL')
+    #train_data, test_data = load_data(OUTPUT_PATH, SEQ_HOME, 'SL')
 
     # pre-processing
     # turn into (patch, indicator) which corresponds to (data, target)
     # data shape => (length, channel, width, height)
     # target shape => (value)
-    train_x, train_y = preprocess(train_data)
-    test_x, test_y = preprocess(test_data)
+    
+    #train_x, train_y = preprocess(train_data)
+    #test_x, test_y = preprocess(test_data)
 
     # TO-DO:
     # train_loader = ...
     # test_loader = ...
 
+#----------------
+    train_data = load_data(OUTPUT_PATH, SEQ_HOME, 'SL')
+    #test_data = load_data(TEST_PATH, SEQ_HOME, 'SL')
+    #train_loader = 
+    pos_data, pos_labels, neg_data, neg_labels = train_data[0].next_frame()
+    
+#----------------
+'''
     # model
     assert opts['vgg_model_path'].split('.')[-1] in ['mat', 'pth'], 'Use pre-trained weights.'
     model = ActNetClassifier(ActNet(model_path=opts['vgg_model_path']))
@@ -135,8 +163,9 @@ if __name__ == '__main__':
 
     # epochs loop
     for epoch in range(1, opts['epochs'] + 1):
+
         cx, hx = train_sl(train_loader, model, optimizer)
-        curr_loss = test_sl(test_loader, model)
+        #curr_loss = test_sl(test_loader, model)
 
         if curr_loss < best_loss:
             best_loss = curr_loss
@@ -157,3 +186,5 @@ if __name__ == '__main__':
 
             if opts['use_gpu']:
                 model = model.cuda()
+
+''' 
