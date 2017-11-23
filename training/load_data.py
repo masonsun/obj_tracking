@@ -1,5 +1,7 @@
 import os
 import pickle
+import sys
+sys.path.insert(0,'../module')
 from gen_dataset_region import GenDatasetRegion
 from options import opts
 # TO-D0:
@@ -21,7 +23,9 @@ def load_data(data_path, img_home, arg=None):
 
     for k, (seq_name, seq) in enumerate(data.items()):
         img_list, gt = seq['images'], seq['gt']
+        
         img_dir = os.path.join(img_home, seq_name)
+        print("img_dir: ", img_dir)
         dataset[k] = GenDatasetRegion(img_dir, img_list, gt, opts, arg)
 
     return dataset

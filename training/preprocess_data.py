@@ -2,9 +2,9 @@ import os
 import numpy as np
 import pickle
 
-SEQ_HOME = './dataset/'
-SEQ_LIST_PATH = 'training/data/vot2013.txt'
-OUTPUT_PATH = 'training/data/vot2013.pkl'
+SEQ_HOME = '../dataset/'
+SEQ_LIST_PATH = 'data/vot2013.txt'
+OUTPUT_PATH = 'data/vot2013.pkl'
 
 with open(SEQ_LIST_PATH, 'r') as fp:
     seq_list = fp.read().splitlines()

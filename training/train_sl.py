@@ -1,26 +1,21 @@
-import os
-print(os.getcwd())
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
-
-import sys
-sys.path.insert(0,'/Users/RobinYen/Documents/DQN/actnet/obj_tracking/module')
-
 from options import opts, kwargs
+
 from load_data import load_data
-from utils import crop_image
+from sample_generator import *
+from utils import crop_image, overlap_ratio
 from actnet import ActNet
 
 
 # File paths
 SEQ_HOME = './dataset'
-SEQ_LIST_PATH = '/Users/RobinYen/Documents/DQN/actnet/obj_tracking/training/data/vot2013.txt'
-OUTPUT_PATH = '/Users/RobinYen/Documents/DQN/actnet/obj_tracking/training/data/vot2013.pkl'
+SEQ_LIST_PATH = 'training/data/vot2013.txt'
+OUTPUT_PATH = 'training/data/vot2013.pkl'
 
 # Frequency of prints
 LOG_INTERVAL = 50
@@ -143,11 +138,11 @@ if __name__ == '__main__':
     pos_data, pos_labels, neg_data, neg_labels = train_data[0].next_frame()
     
 #----------------
-'''
+
     # model
     assert opts['vgg_model_path'].split('.')[-1] in ['mat', 'pth'], 'Use pre-trained weights.'
     model = ActNetClassifier(ActNet(model_path=opts['vgg_model_path']))
-
+'''
     if opts['gpu']:
         model = model.cuda()
     model.set_trainable_params(opts['trainable_layers'])

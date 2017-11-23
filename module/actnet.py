@@ -5,8 +5,8 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
-from module.layers import LRN
-from training.options import opts
+from layers import LRN
+from options import opts
 
 
 class ActNet(nn.Module):

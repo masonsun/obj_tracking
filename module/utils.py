@@ -3,9 +3,9 @@ import torch
 from PIL import Image
 from scipy.misc import imresize
 
-import sys
-sys.path.insert(0,'/Users/RobinYen/Documents/DQN/actnet/obj_tracking/')
-from training.options import opts
+#import sys
+#sys.path.insert(0,'/Users/RobinYen/Documents/DQN/actnet/obj_tracking/')
+from options import opts
 
 
 def overlap_ratio(rect1, rect2):
@@ -78,13 +78,15 @@ def get_bbox(action, bbox, alpha=opts['alpha']):
         except AttributeError:
             print("Cannot handle action data type: {}".format(type(action)))
             return bbox
+    
     # stop
     a = int(np.argmax(a))
     if len(deltas) - 1 == a:
         return bbox, True
-
+    print("get_bbox: ", deltas[a] , torch.from_numpy(np.asarray(deltas[a])*alpha)+ bbox.data)
     # apply actions
-    bbox += (np.asarray(deltas[a]) * alpha)
+    bbox.data += torch.from_numpy((np.asarray(deltas[a]) * alpha))
+    
     return bbox, False
 
 
@@ -98,16 +100,19 @@ def epsilon_greedy(action, epsilon, num_actions=opts['num_actions']):
     :return: one-hot encoded action and its index (torch variables)
     """
     # assign probabilities to each action
+    
     explore_prob = epsilon / num_actions
     p = np.full(num_actions, explore_prob)
-    p[np.argmax(action.numpy())] = 1 - epsilon + explore_prob
-
+    p[np.argmax(action.data.numpy())] = 1 - epsilon + explore_prob
+    print("epsilon_greedy:", p)
+    #print(explore_prob, epsilon)
     # one-hot encoding of selected action
     one_hot_action = torch.zeros(num_actions)
     index = np.random.choice(np.arange(num_actions), p=p)
-    one_hot_action[index] = 1
-    return one_hot_action, torch.LongTensor[index]
 
+
+    one_hot_action[index] = 1
+    return one_hot_action , torch.LongTensor([[index.item()]]) #torch.LongTensor(one_hot_action.long()) #
 
 def fifo_update(x, y):
     """

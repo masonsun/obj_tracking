@@ -5,10 +5,10 @@ import torchvision.transforms as transforms
 from PIL import Image
 
 import sys
-sys.path.insert(0,'/Users/RobinYen/Documents/DQN/actnet/obj_tracking/module')
+sys.path.insert(0,'module')
 from sample_generator import *
 
-from utils import crop_image
+from utils import crop_image, overlap_ratio
 
 
 class GenDatasetRegion(data.Dataset):
@@ -74,7 +74,29 @@ class GenDatasetRegion(data.Dataset):
         neg_labels = torch.from_numpy(neg_labels).float()
         return pos_regions, pos_labels, neg_regions, neg_labels
         #return image, bbox
-    
+        
+    def next_frame_rl(self):
+        next_pointer = min(self.pointer + self.batch_frames, len(self.img_list))
+        idx = self.index[self.pointer:next_pointer]
+        if len(idx) < self.batch_frames:
+            self.index = np.random.permutation(len(self.img_list))
+            next_pointer = self.batch_frames - len(idx)
+            idx = np.concatenate((idx, self.index[:next_pointer]))
+        self.pointer = next_pointer
+
+        pos_regions = np.empty((0,3,self.crop_size,self.crop_size))
+
+        for i, (img_path, bbox) in enumerate(zip(self.img_list[idx], self.gt[idx])):
+            image = Image.open(img_path).convert('RGB')
+            image = np.asarray(image)
+
+            #n_pos = (self.batch_pos - len(pos_regions)) // (self.batch_frames - i)
+            #pos_examples = gen_samples(self.pos_generator, bbox, n_pos, overlap_range=self.overlap_pos)
+            #pos_regions = np.concatenate((pos_regions, self.extract_regions(image, pos_examples)),axis=0)
+
+        #pos_regions = torch.from_numpy(pos_regions).float()
+        return image, bbox, bbox
+
     def next_frame(self):
         if self.mode == 'rl':
             return self.next_frame_rl()

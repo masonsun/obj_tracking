@@ -9,8 +9,8 @@ from torch.autograd import Variable
 
 from options import opts
 from load_data import load_data
-from module.utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_image
-from module.actnet import ActNet
+from utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_image
+from actnet import ActNet
 
 SEQ_HOME = '../dataset'
 SEQ_LIST_PATH = 'data/vot2013.txt'
@@ -37,8 +37,8 @@ def train_rl():
                                            'reward', 'next_state', 'done'])
 
     # model
-    assert opts['model_sl_path'].split('.')[-1] == '.pth', 'Use pre-trained weights.'
-    model = ActNet(model_path=opts['model_sl_path'])
+    assert opts['model_sl_path'].split('.')[-1] == 'pth', 'Use pre-trained weights.'
+    model = ActNet()#model_path=opts['model_sl_path'])
 
     if opts['gpu']:
         model = model.cuda()
@@ -57,7 +57,7 @@ def train_rl():
         print('LSTM state values not found. Initializing as zero valued tensors')
         cx = Variable(torch.zeros(1, 512))
         hx = Variable(torch.zeros(1, 512))
-
+    
     # training loop
     k_list = np.random.permutation(len(dataset))
     for j, k in enumerate(k_list):
@@ -66,12 +66,17 @@ def train_rl():
         losses = np.full(data_length, np.inf)
 
         for f in range(data_length):
-            img, bbox, gt = dataset[k].next_frame()
+            img_n, bbox_n, gt_n = dataset[k].next_frame()
+            #img_n = img_n.transpose(2,0,1)
+            img, bbox, gt = torch.from_numpy(img_n), torch.from_numpy(bbox_n), torch.from_numpy(gt_n)
             img, bbox, gt = Variable(img), Variable(bbox), Variable(gt)
             if opts['gpu']:
                 img, bbox, gt = img.cuda(), bbox.cuda(), gt.cuda()
 
-            state = Variable(crop_image(img, bbox))
+            state = crop_image(img_n, bbox_n)
+            state = state.transpose(2,0,1)
+
+            state = Variable(torch.from_numpy(state))
             epsilon = opts['epsilon']
 
             episode = []
@@ -79,19 +84,34 @@ def train_rl():
 
             start_time = dt.now()
             for i in range(opts['max_actions']):
-                value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
+                print("i:", i)
+                #print(state.unsqueeze(0))
+                #print((hx.float(), cx.float()))
+                print(state.size())
+                value, logit, (hx, cx) = model((state.unsqueeze(0).float(), (hx.float(), cx.float())))
                 prob, log_prob = F.softmax(logit), F.log_softmax(logit)
                 entropy = -(log_prob * prob).sum(1, keepdim=True)
-
+                
+                
+                
+                #print("Prob:", log_prob)
+                #prob = np.asarray(prob)
+                #print("abc", isinstance(prob, torch.Tensor))
+                #print(prob.shape)
                 action, index = epsilon_greedy(prob, epsilon)
-                log_prob = log_prob.gather(-1, index)
-                epsilon /= opts['epsilon_decay']
+                print("index:", index)
+                log_prob = log_prob.gather(-1, Variable(index))
+                epsilon *= opts['epsilon_decay']
 
                 # take a step
                 bbox, done = get_bbox(action, bbox)
-                next_state = Variable(crop_image(img, bbox))
+                
+                next_state = crop_image(img_n, bbox.data.numpy())
+                next_state = next_state.transpose(2,0,1)
+                next_state = Variable( torch.from_numpy(next_state) )
+                #next_state = Variable(crop_image(img_n, bbox))
                 done = done or (i+1) >= opts['max_actions']
-                reward = 0 if not done else get_reward(overlap_ratio(bbox, gt))
+                reward = 0 if not done else get_reward(overlap_ratio(bbox.data.numpy(), gt.data.numpy()))
 
                 # keep track of transitions
                 values.append(value)
@@ -113,30 +133,37 @@ def train_rl():
             entropy_coeff = opts['entropy_coeff']
 
             for i in reversed(range(len(episode))):
+                print("reversed i", i )
                 v = episode[i].reward + (gamma * v)
                 adv = v - values[i]
                 value_loss += 0.5 * adv.pow(2)
-
+                print("value loss", value_loss.data.shape)
+                
                 # generalized advantage estimation (GAE)
                 delta_t = episode[i].reward + (gamma * values[i + 1].data) - values[i].data
                 gae = (gamma * tau * gae) + delta_t
                 policy_loss -= (episode[i].log_prob * Variable(gae)) - (entropy_coeff * episode[i].entropy)
+                
 
             loss = policy_loss + opts['value_loss_coeff'] * value_loss
-            losses[f] = loss
+            print("LOSS:", loss, f)
+            
+            losses[f] = loss.data[0][0]
 
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm(model.parameters(), opts['grad_clip'])
             optimizer.step()
-
+            print("policy loss", policy_loss, policy_loss.data[0][0])
             # print progress
+            #print("Class {}/{}, Policy loss: {:.3f},".format(j+1, len(k_list),policy_loss.data[0][]))
+
             print("Class {}/{}, Frame {}/{}, Policy loss: {:.3f}, Value loss: {:.3f},\
                    Time: {:.3f}".format(j+1, len(k_list),
                                         f+1, data_length,
-                                        policy_loss, value_loss,
+                                        policy_loss.data[0][0], value_loss.data[0][0],
                                         (dt.now() - start_time).total_seconds()))
-
+            
         if np.any(np.isinf(losses)):
             raise RuntimeError("Infinite loss detected")
 
