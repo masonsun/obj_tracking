@@ -44,7 +44,7 @@ def get_reward(iou):
     return -1
 
 
-def get_bbox(action, bbox, alpha=opts['alpha']):
+def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
     """
     Given the action, modify the bounding box accordingly
 
@@ -54,7 +54,7 @@ def get_bbox(action, bbox, alpha=opts['alpha']):
     :return: new bounding box, boolean indicating terminating action
     """
     # Actions
-    deltas = [
+    action_deltas = [
         [-1, 0, 0, 0],   # left
         [+1, 0, 0, 0],   # right
         [0, -1, 0, 0],   # up
@@ -71,7 +71,7 @@ def get_bbox(action, bbox, alpha=opts['alpha']):
     # retrieve index of selected action
     assert action.sum() == 1.0, "Not one-hot encoded action"
     if isinstance(action, torch.Tensor):
-        a = action.numpy()
+        a = action.numpy()      
     else:
         try:
             a = np.asarray(action)
@@ -79,14 +79,44 @@ def get_bbox(action, bbox, alpha=opts['alpha']):
             print("Cannot handle action data type: {}".format(type(action)))
             return bbox
     
-    # stop
+    bbox_n = (bbox.data.numpy())
+    
+    print("current bbox_n:", bbox_n)
+    
+    bbox_n[0] = bbox_n[0] + 0.5 * bbox_n[2]
+    bbox_n[1] = bbox_n[1] + 0.5 * bbox_n[3]
+
+    deltas = alpha * np.asarray([bbox_n[2], bbox_n[3], bbox_n[2], bbox_n[3]])
+    
     a = int(np.argmax(a))
+
+    # stop
     if len(deltas) - 1 == a:
         return bbox, True
-    print("get_bbox: ", deltas[a] , torch.from_numpy(np.asarray(deltas[a])*alpha)+ bbox.data)
+
     # apply actions
-    bbox.data += torch.from_numpy((np.asarray(deltas[a]) * alpha))
+    # bbox.data += torch.from_numpy((np.asarray(deltas[a]) * alpha))    
+    bbox_n += action_deltas[a]*deltas 
     
+    # change to original bbox representation 
+    bbox_n[0] -= 0.5 * bbox_n[2] 
+    bbox_n[1] -= 0.5 * bbox_n[3]
+    # edge handling
+    bbox_n[2] = max(5, min(img_size[1], bbox_n[2]))
+    bbox_n[3] = max(5, min(img_size[0], bbox_n[3]))
+
+    bbox_n[0] = max(bbox_n[0], 1)
+    bbox_n[0] = min(bbox_n[0], img_size[1] - bbox_n[2])
+    bbox_n[1] = max(bbox_n[1], 1)
+    bbox_n[1] = min(bbox_n[1], img_size[0] - bbox_n[3])
+
+    #bbox_n = bbox_n + 10
+    #np.add(bbox_n, 10, out = bbox_n)
+    #print("delta:", deltas)
+    #print("bbox_n:", bbox_n)
+
+    print("new get_bbox : {} action chosen: {} \n".format(bbox, action_deltas[a]))
+
     return bbox, False
 
 
@@ -104,7 +134,7 @@ def epsilon_greedy(action, epsilon, num_actions=opts['num_actions']):
     explore_prob = epsilon / num_actions
     p = np.full(num_actions, explore_prob)
     p[np.argmax(action.data.numpy())] = 1 - epsilon + explore_prob
-    print("epsilon_greedy:", p)
+    print("action probablilty epsilon_greedy:", p)
     #print(explore_prob, epsilon)
     # one-hot encoding of selected action
     one_hot_action = torch.zeros(num_actions)

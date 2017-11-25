@@ -63,10 +63,14 @@ def train_rl():
     for j, k in enumerate(k_list):
 
         data_length = len(dataset[k].img_list)
+        #data_length = 1 ## debug
         losses = np.full(data_length, np.inf)
 
-        for f in range(data_length):
+        for f in range(data_length): 
+            print(data_length)
+            
             img_n, bbox_n, gt_n = dataset[k].next_frame()
+            #print("img shape:", img_n.shape[0])
             #img_n = img_n.transpose(2,0,1)
             img, bbox, gt = torch.from_numpy(img_n), torch.from_numpy(bbox_n), torch.from_numpy(gt_n)
             img, bbox, gt = Variable(img), Variable(bbox), Variable(gt)
@@ -84,7 +88,7 @@ def train_rl():
 
             start_time = dt.now()
             for i in range(opts['max_actions']):
-                print("i:", i)
+                print("step {} in an episode:".format(i))
                 #print(state.unsqueeze(0))
                 #print((hx.float(), cx.float()))
                 print(state.size())
@@ -98,13 +102,14 @@ def train_rl():
                 #prob = np.asarray(prob)
                 #print("abc", isinstance(prob, torch.Tensor))
                 #print(prob.shape)
+                
                 action, index = epsilon_greedy(prob, epsilon)
-                print("index:", index)
+                #print("index:", index)
                 log_prob = log_prob.gather(-1, Variable(index))
                 epsilon *= opts['epsilon_decay']
 
                 # take a step
-                bbox, done = get_bbox(action, bbox)
+                bbox, done = get_bbox(action, bbox, img_n.shape)
                 
                 next_state = crop_image(img_n, bbox.data.numpy())
                 next_state = next_state.transpose(2,0,1)
@@ -137,7 +142,7 @@ def train_rl():
                 v = episode[i].reward + (gamma * v)
                 adv = v - values[i]
                 value_loss += 0.5 * adv.pow(2)
-                print("value loss", value_loss.data.shape)
+                #print("value loss", value_loss.data.shape)
                 
                 # generalized advantage estimation (GAE)
                 delta_t = episode[i].reward + (gamma * values[i + 1].data) - values[i].data
@@ -151,12 +156,11 @@ def train_rl():
             losses[f] = loss.data[0][0]
 
             optimizer.zero_grad()
-            loss.backward()
+            loss.backward(retain_graph=True)
             torch.nn.utils.clip_grad_norm(model.parameters(), opts['grad_clip'])
             optimizer.step()
-            print("policy loss", policy_loss, policy_loss.data[0][0])
+
             # print progress
-            #print("Class {}/{}, Policy loss: {:.3f},".format(j+1, len(k_list),policy_loss.data[0][]))
 
             print("Class {}/{}, Frame {}/{}, Policy loss: {:.3f}, Value loss: {:.3f},\
                    Time: {:.3f}".format(j+1, len(k_list),
@@ -179,13 +183,13 @@ def train_rl():
                 'critic': model.critic.state_dict()
             }
 
-            if opts['use_gpu']:
+            if opts['gpu']:
                 model = model.cpu()
 
             print("Saved model to {}".format(opts['model_rl_path']))
             torch.save(states, opts['model_rl_path'])
 
-            if opts['use_gpu']:
+            if opts['gpu']:
                 model = model.cuda()
 
 
