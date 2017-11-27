@@ -91,7 +91,7 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
     a = int(np.argmax(a))
 
     # stop
-    if len(deltas) - 1 == a:
+    if len(action_deltas) - 1 == a:
         return bbox, True
 
     # apply actions
@@ -120,7 +120,7 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
     return bbox, False
 
 
-def epsilon_greedy(action, epsilon, num_actions=opts['num_actions']):
+def epsilon_greedy(action, epsilon,  num_actions=opts['num_actions']):
     """
     Select one-hot encoded action using epsilon-greedy
 
@@ -139,7 +139,11 @@ def epsilon_greedy(action, epsilon, num_actions=opts['num_actions']):
     # one-hot encoding of selected action
     one_hot_action = torch.zeros(num_actions)
     index = np.random.choice(np.arange(num_actions), p=p)
-
+    
+    #debug 
+    #if i == 10:
+    #    index = np.int64(10)
+    #exit()
 
     one_hot_action[index] = 1
     return one_hot_action , torch.LongTensor([[index.item()]]) #torch.LongTensor(one_hot_action.long()) #

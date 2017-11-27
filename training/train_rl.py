@@ -63,7 +63,7 @@ def train_rl():
     for j, k in enumerate(k_list):
 
         data_length = len(dataset[k].img_list)
-        #data_length = 1 ## debug
+        data_length = 10## debug
         losses = np.full(data_length, np.inf)
 
         for f in range(data_length): 
@@ -76,6 +76,7 @@ def train_rl():
             img, bbox, gt = Variable(img), Variable(bbox), Variable(gt)
             if opts['gpu']:
                 img, bbox, gt = img.cuda(), bbox.cuda(), gt.cuda()
+                img_n, bbox_n = img_n.cuda(), bbox_n.cuda()
 
             state = crop_image(img_n, bbox_n)
             state = state.transpose(2,0,1)
@@ -103,7 +104,7 @@ def train_rl():
                 #print("abc", isinstance(prob, torch.Tensor))
                 #print(prob.shape)
                 
-                action, index = epsilon_greedy(prob, epsilon)
+                action, index = epsilon_greedy(prob, epsilon )
                 #print("index:", index)
                 log_prob = log_prob.gather(-1, Variable(index))
                 epsilon *= opts['epsilon_decay']
@@ -117,7 +118,8 @@ def train_rl():
                 #next_state = Variable(crop_image(img_n, bbox))
                 done = done or (i+1) >= opts['max_actions']
                 reward = 0 if not done else get_reward(overlap_ratio(bbox.data.numpy(), gt.data.numpy()))
-
+                print("get reward:", get_reward(overlap_ratio(bbox.data.numpy(), gt.data.numpy())))
+                #exit()
                 # keep track of transitions
                 values.append(value)
                 episode.append(transition(state=state, action=action, log_prob=log_prob, entropy=entropy,
