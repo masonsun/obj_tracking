@@ -40,6 +40,7 @@ class ActNet(nn.Module):
         self.critic.bias.data.fill_(0)
         self.lstm.bias_ih.data.fill_(0)
         self.lstm.bias_hh.data.fill_(0)
+        self.hidden = (None, None) 
 
         # Load weights
         if model_path is not None:
@@ -106,17 +107,21 @@ class ActNet(nn.Module):
                 p[i] = param
         return p
 
+    def set_hidden(self, hidden):
+        self.hidden = hidden
+
     # Forward pass of ActNet
     def forward(self, x):
-        assert len(x) == 2 and len(x[1]) == 2, 'wrong number of inputs'
+        #assert len(x) == 2 and len(x[1]) == 2, 'wrong number of inputs'
         # inputs
-        x, (hx, cx) = x
+        #x, (hx, cx) = x
+	
         # vgg-m
         for name, submodule in self.vggm_layers.named_children():
             x = submodule(x)
             if name == 'conv3':
                 x = x.view(-1, 512 * 3 * 3)
         # actor-critic
-        hx, cx = self.lstm(x, (hx, cx))
+        hx, cx = self.lstm(x, self.hidden)
         x = hx
         return self.critic(x), self.actor(x), (hx, cx)
