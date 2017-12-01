@@ -59,10 +59,10 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
         [+1, 0, 0, 0],   # right
         [0, -1, 0, 0],   # up
         [0, +1, 0, 0],   # down
-        [0, 0, -1, 0],   # shorten width
-        [0, 0, +1, 0],   # elongate width
-        [0, 0, 0, -1],   # shorten height
-        [0, 0, 0, +1],   # elongate height
+        [-2, 0, 0, 0],   # shorten width
+        [+2, 0, 0, 0],   # elongate width
+        [0, -2, 0, 0],   # shorten height
+        [0, +2, 0, 0],   # elongate height
         [0, 0, -1, -1],  # smaller
         [0, 0, +1, +1],  # bigger
         [0, 0, 0, 0],    # stop

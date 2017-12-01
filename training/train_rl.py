@@ -13,8 +13,8 @@ from utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_imag
 from actnet import ActNet
 
 SEQ_HOME = '../dataset'
-SEQ_LIST_PATH = 'data/vot2013.txt'
-OUTPUT_PATH = 'data/vot2013.pkl'
+SEQ_LIST_PATH = 'data/human.txt'
+OUTPUT_PATH = 'data/human.pkl'
 
 np.random.seed(123)
 torch.manual_seed(456)
