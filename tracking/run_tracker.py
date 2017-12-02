@@ -17,7 +17,7 @@ sys.path.insert(0,'../training')
 sys.path.insert(0,'../module')
 from options import opts
 #from train_rl import set_optimizer
-from actnet import ActNet
+from actnet import ActNet , ActNetClassifier
 
 from sample_generator import *
 
@@ -83,7 +83,14 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
     result_bb[0] = target_bbox
 
     # Init model
-    model = ActNet(model_path=opts['model_rl_path'])
+    model = ActNet(opts=opts)
+    #model_classifier = ActNetClassifier(ActNet(opts=opts,model_path=None), opts['num_actions'])#model_path=opts['model_sl_path'])
+    #print(model_classifier.state_dict())
+    #model_classifier.load_state_dict(torch.load('../model/actnet-rl-v2.pth'))
+    model.load_state_dict(torch.load('../model/actnet-rl-v2.pth'))
+    #model = model_classifier.actnet
+    model = model.float()
+
     if opts['gpu']:
         model = model.cuda()
     #model.set_learnable_params(opts['ft_layers'])
@@ -95,7 +102,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
         print('LSTM state values not found. Initializing as zero valued tensors')
         cx = Variable(torch.zeros(1, 512))
         hx = Variable(torch.zeros(1, 512))
-    model.set_hidden((hx, cx))
+    model.init_hidden(1)
 
     # Display starting image
     image = Image.open(img_list[0]).convert('RGB')
@@ -157,6 +164,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
             #value, logit, (hx, cx) = model((state.unsqueeze(0).float(), (hx.float(), cx.float())))
             value, logit, (hx, cx) = model(state.unsqueeze(0).float())
             prob, log_prob = F.softmax(logit), F.log_softmax(logit)
+            model.set_hidden((hx, cx))
             
             one_hot_action = torch.zeros(opts['num_actions'])
             action = np.argmax(prob.data.numpy())

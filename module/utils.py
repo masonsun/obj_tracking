@@ -81,7 +81,7 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
     
     bbox_n = (bbox.data.numpy())
     
-    print("current bbox_n:", bbox_n)
+    #print("current bbox_n:", bbox_n)
     
     bbox_n[0] = bbox_n[0] + 0.5 * bbox_n[2]
     bbox_n[1] = bbox_n[1] + 0.5 * bbox_n[3]
@@ -134,7 +134,7 @@ def epsilon_greedy(action, epsilon,  num_actions=opts['num_actions']):
     explore_prob = epsilon / num_actions
     p = np.full(num_actions, explore_prob)
     p[np.argmax(action.data.numpy())] = 1 - epsilon + explore_prob
-    print("action probablilty epsilon_greedy:", p)
+    #print("action probablilty epsilon_greedy:", p)
     #print(explore_prob, epsilon)
     # one-hot encoding of selected action
     one_hot_action = torch.zeros(num_actions)
