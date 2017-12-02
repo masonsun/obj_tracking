@@ -19,7 +19,7 @@ opts = {
     'overlap_neg': [0, 0.5],
 
     # Gradient descent
-    'lr': 1e-4,
+    'lr': 1e-5,
     'w_decay': 5e-4,
     'momentum': 0.9,
     'grad_clip': 10,
@@ -35,7 +35,7 @@ opts = {
     'epsilon': 0.2,
     'epsilon_decay': 0.98,
     'max_actions': 20,
-    'alpha': 0.06,
+    'alpha': 0.03,
     'iou_criterion': 0.7,
     'reward_discount': 0.99,
 
