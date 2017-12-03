@@ -80,6 +80,12 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
             return bbox
     
     bbox_n = (bbox.data.numpy())
+
+    a = int(np.argmax(a))
+
+    # stop
+    if len(action_deltas) - 1 == a:
+        return bbox, True
     
     #print("current bbox_n:", bbox_n)
     
@@ -88,12 +94,6 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
 
     deltas = alpha * np.asarray([bbox_n[2], bbox_n[3], bbox_n[2], bbox_n[3]])
     
-    a = int(np.argmax(a))
-
-    # stop
-    if len(action_deltas) - 1 == a:
-        return bbox, True
-
     # apply actions
     # bbox.data += torch.from_numpy((np.asarray(deltas[a]) * alpha))    
     bbox_n += action_deltas[a]*deltas 
