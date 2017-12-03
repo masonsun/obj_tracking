@@ -97,7 +97,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
     if opts['gpu']:
         model = model.cuda()
     #model.set_learnable_params(opts['ft_layers'])
-    model.eval()
+    model.train()
     try:
         cx, hx = torch.load(opts['lstm_path'])
         cx, hx = Variable(cx), Variable(hx)
@@ -150,7 +150,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
         image_n = image.copy()
         #exit()
         image_n = np.asarray(image_n)
-        if i  in (0,10):
+        if i  in (0,10,30):
             bbox_n = gt[i].copy()
             bbox = torch.from_numpy(bbox_n)
             bbox = Variable(bbox)
@@ -159,7 +159,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
         #TODO : save predicted box in result_bb
         state = crop_image(image_n, bbox_n)
         state = state.transpose(2,0,1)
-
+        #print("state: ", state)
         state = Variable(torch.from_numpy(state))
         
         for j in range(opts['max_actions']):
@@ -167,20 +167,19 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
             #value, logit, (hx, cx) = model((state.unsqueeze(0).float(), (hx.float(), cx.float())))
             value, logit, (hx, cx) = model(state.unsqueeze(0).float())
             prob, log_prob = F.softmax(logit), F.log_softmax(logit)
-            #print("Prob:", prob)
+            print("Prob:", prob)
             #exit()
-            print("h, c", hx)
+            
             
             model.set_hidden((hx, cx))
             
             one_hot_action = torch.zeros(opts['num_actions'])
             action = np.argmax(prob.data.numpy())
             one_hot_action[action] = 1
-            print(prob)
             print(action)
             bbox, done = get_bbox(one_hot_action, bbox, image_n.shape)
 
-            print("bbox_n:", bbox_n)
+            print("bbox:", bbox)
             bbox_n_copy = bbox_n.copy()
             bbox_history.append(bbox_n_copy)
             if done:

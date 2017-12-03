@@ -43,9 +43,9 @@ def train_rl():
     model = ActNetRL(model_classifier.actnet, opts['num_actions'])
     #model = model_classifier.actnet
     model = model.float()
-    #for params in model.actnet.parameters():
-    #    params.requires_grad = False
-    '''
+    for params in model.actnet.parameters():
+        params.requires_grad = False
+    
     trainable_params = [
                         {"params":model.lstm.parameters()},
                         {"params":model.dense1.parameters()},
@@ -53,14 +53,14 @@ def train_rl():
                         {"params":model.actor.parameters()},
                         {"params":model.critic.parameters()}
     ]
-    '''
+    
     if opts['gpu']:
         model = model.cuda()
     model.train()
     
     # evaluation
     best_loss = np.inf
-    optimizer = optim.RMSprop(model.parameters(), lr=opts['lr'],
+    optimizer = optim.RMSprop(trainable_params, lr=opts['lr'],
                               momentum=opts['momentum'], weight_decay=opts['w_decay'])
 
     # initializations
@@ -83,9 +83,9 @@ def train_rl():
     start_time = dt.now()
     while True:
         for j, k in enumerate(k_list):
-            #print(dataset[k].img_list[0])
-            if j != 0:
-                continue
+            print(dataset[k].img_list[0])
+            #if j != 0:
+            #    continue
             data_length = len(dataset[k].img_list)
             #data_length = 10## debug
             losses = np.full(data_length, np.inf)
@@ -94,7 +94,7 @@ def train_rl():
             for f in range(data_length): 
  
                 #print(data_length)
-                model.init_hidden(1, False)
+                model.init_hidden(1, opts['gpu'])
                 img_n, bbox_n, gt_n = dataset[k].next_frame()
                 #exit()
                 print("bbox:", bbox_n)
@@ -225,7 +225,7 @@ def train_rl():
                 raise RuntimeError("Infinite loss detected")
 
             curr_loss = losses.mean()
-            #print("Mean loss: {:.3f}".format(curr_loss))
+            print("Mean loss: {:.3f}".format(curr_loss))
             if curr_loss < best_loss:
                 best_loss = curr_loss
 
