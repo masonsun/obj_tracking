@@ -77,7 +77,7 @@ def train_rl():
             data_length = len(dataset[k].img_list)
             #data_length = 10## debug
             losses = np.full(data_length, np.inf)
-            model.init_hidden(1, False)
+            model.init_hidden(1, True)
 
             for f in range(data_length): 
                 #print(data_length)
