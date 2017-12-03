@@ -120,3 +120,61 @@ class ActNetClassifier(nn.Module):
         return F.softmax(x), (hx, cx)
 
 
+class ActNetRL(nn.Module):
+    def __init__(self, actnet, num_actions):
+        super(ActNetRL, self).__init__()
+        self.actnet = actnet
+        self.lstm = nn.LSTMCell(actnet.tf * 2 * 2, 250)
+        self.dense1 = nn.Linear(250, 100)
+        self.dense1_act = nn.LeakyReLU()
+        self.dense2 = nn.Linear(100, 50)
+        self.dense2_act = nn.LeakyReLU()
+        self.actor = nn.Linear(50, num_actions)
+        self.critic = nn.Linear(50, 1)
+        self.hidden = (None, None)
+
+    def set_hidden(self, hidden):
+        hx, cx = hidden
+        self.hidden = (autograd.Variable(hx.data, requires_grad=True), autograd.Variable(cx.data, requires_grad=True))
+
+
+    def init_hidden(self, num_examples, cuda = False):
+                # Before we've done anything, we dont have any hidden state.
+                # Refer to the Pytorch documentation to see exactly
+                # why they have this dimensionality.
+                # The axes semantics are (num_layers, minibatch_size, hidden_dim)
+                # 20 = batch_pos + batch_neg in gen_batch class
+                hx, cx = (autograd.Variable(torch.zeros(num_examples, 250), requires_grad=True), autograd.Variable(torch.zeros(num_examples, 250), requires_grad=True))
+                if cuda:
+                    hx, cx = hx.cuda(), cx.cuda()
+                self.hidden = (hx, cx)
+
+    def forward(self, x):
+        x = self.actnet.conv1(x)
+        x = self.actnet.conv1_act(x)
+        x = self.actnet.mp1(x)
+        x = self.actnet.conv2(x)
+        x = self.actnet.conv2_act(x)
+        
+        x = self.actnet.mp2(x)
+        x = self.actnet.conv3(x)
+        x = self.actnet.conv3_act(x)
+        x = self.actnet.conv4(x)
+        x = self.actnet.conv4_act(x)
+        
+        x = self.actnet.conv5(x)
+        x = self.actnet.conv5_act(x)
+
+        # actor-critic
+        x = x.view(-1, self.actnet.tf * 2 * 2)
+        
+        hx, cx = self.lstm(x, self.hidden)
+        x = hx
+        x = self.dense1(x)
+        x = self.dense1_act(x)
+        x = self.dense2(x)
+        x = self.dense2_act(x)
+        actor = self.actor(x)
+        critic = self.critic(x)
+        return nn.Tanh()(critic), actor, (hx, cx)
+        

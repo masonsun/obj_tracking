@@ -16,7 +16,6 @@ class GenDatasetRegion(data.Dataset):
 
         self.img_list = np.array([os.path.join(img_dir, img) for img in img_list])
         self.gt = gt
-
         self.batch_frames = opts['batch_frames']
         self.batch_pos = opts['batch_pos']
         self.batch_neg = opts['batch_neg']
@@ -90,7 +89,7 @@ class GenDatasetRegion(data.Dataset):
             bbox_idx = idx[0] - 10
             if bbox_idx<0:
                 bbox_idx = 0
-            print("bbox_idx, IDX:", bbox_idx, idx)
+            #print("bbox_idx, IDX:", bbox_idx, idx)
             image = Image.open(img_path).convert('RGB')
             image = np.asarray(image)
 
@@ -99,7 +98,8 @@ class GenDatasetRegion(data.Dataset):
             #pos_regions = np.concatenate((pos_regions, self.extract_regions(image, pos_examples)),axis=0)
         gt_box = bbox.copy()
         bbox = self.gt[bbox_idx].copy()
-        print(gt_box, bbox)
+        
+        #print(gt_box, bbox)
         #pos_regions = torch.from_numpy(pos_regions).float()
         return image, bbox, gt_box
 

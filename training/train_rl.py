@@ -75,7 +75,7 @@ def train_rl():
             losses = np.full(data_length, np.inf)
 
             for f in range(data_length): 
-                print(data_length)
+                #print(data_length)
                 
                 img_n, bbox_n, gt_n = dataset[k].next_frame()
                 #print("img shape:", img_n.shape[0])
@@ -100,10 +100,10 @@ def train_rl():
 
                 #start_time = dt.now()
                 for i in range(opts['max_actions']):
-                    print("step {} in an episode:".format(i))
+                    #print("step {} in an episode:".format(i))
                     #print(state.unsqueeze(0))
                     #print((hx.float(), cx.float()))
-                    print(state.size())
+                    #print(state.size())
                     value, logit, (hx, cx) = model(state.unsqueeze(0).float())
                     prob, log_prob = F.softmax(logit), F.log_softmax(logit)
                     entropy = -(log_prob * prob).sum(1, keepdim=True)
@@ -131,7 +131,7 @@ def train_rl():
                     #next_state = Variable(crop_image(img_n, bbox))
                     done = done or (i+1) >= opts['max_actions']
                     reward = 0 if not done else get_reward(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy()))
-                    print("get reward:", get_reward(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy())))
+                    print("get reward:", reward)
                     #exit()
                     # keep track of transitions
                     values.append(value)
@@ -153,7 +153,7 @@ def train_rl():
                 entropy_coeff = opts['entropy_coeff']
 
                 for i in reversed(range(len(episode))):
-                    print("reversed i", i )
+                    #print("reversed i", i )
                     v = episode[i].reward + (gamma * v)
                     adv = v - values[i].cpu()
                     value_loss += 0.5 * adv.pow(2)

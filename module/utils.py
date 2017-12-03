@@ -57,10 +57,10 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
     action_deltas = [
         [-1, 0, 0, 0],   # left
         [+1, 0, 0, 0],   # right
+        [+2, 0, 0, 0],   # shorten width
+        [+2, 0, 0, 0],   # elongate width
         [0, -1, 0, 0],   # up
         [0, +1, 0, 0],   # down
-        [-2, 0, 0, 0],   # shorten width
-        [+2, 0, 0, 0],   # elongate width
         [0, -2, 0, 0],   # shorten height
         [0, +2, 0, 0],   # elongate height
         [0, 0, -1, -1],  # smaller
@@ -78,9 +78,15 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
         except AttributeError:
             print("Cannot handle action data type: {}".format(type(action)))
             return bbox
+
+    a = int(np.argmax(a))
+
+    # stop
+    if len(action_deltas) - 1 == a:
+        return bbox, True
     
     bbox_n = (bbox.data.numpy())
-    
+    #print("bbox_n: ", bbox_n)
     #print("current bbox_n:", bbox_n)
     
     bbox_n[0] = bbox_n[0] + 0.5 * bbox_n[2]
@@ -88,12 +94,6 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
 
     deltas = alpha * np.asarray([bbox_n[2], bbox_n[3], bbox_n[2], bbox_n[3]])
     
-    a = int(np.argmax(a))
-
-    # stop
-    if len(action_deltas) - 1 == a:
-        return bbox, True
-
     # apply actions
     # bbox.data += torch.from_numpy((np.asarray(deltas[a]) * alpha))    
     bbox_n += action_deltas[a]*deltas 
@@ -115,7 +115,8 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
     #print("delta:", deltas)
     #print("bbox_n:", bbox_n)
 
-    print("new get_bbox : {} action chosen: {} \n".format(bbox, action_deltas[a]))
+    #print("new get_bbox : {} action chosen: {} \n".format(bbox, action_deltas[a]))
+    #print("action chosen: {} \n".format(action_deltas[a]))
 
     return bbox, False
 

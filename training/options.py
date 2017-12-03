@@ -32,15 +32,15 @@ opts = {
     'padding': 16,
 
     # Tracking
-    'epsilon': 0.5,
-    'epsilon_decay': 0.9,
-    'max_actions': 20,
+    'epsilon': 0.3,
+    'epsilon_decay': 0.98,
+    'max_actions': 10,
     'alpha': 0.03,
-    'iou_criterion': 0.7,
-    'reward_discount': 0.99,
+    'iou_criterion': 0.6,
+    'reward_discount': 0.90,
 
     # GAE
-    'gamma': 0.99,
+    'gamma': 1.0,
     'tau': 0.99,
     'entropy_coeff': 0.99,
     'value_loss_coeff': 0.99

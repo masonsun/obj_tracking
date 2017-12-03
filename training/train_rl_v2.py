@@ -10,7 +10,7 @@ from torch.autograd import Variable
 from options import opts
 from load_data import load_data
 from utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_image
-from actnet import ActNet, ActNetClassifier
+from actnet import ActNet, ActNetClassifier, ActNetRL
 
 SEQ_HOME = '../dataset'
 SEQ_LIST_PATH = 'data/human.txt'
@@ -39,16 +39,25 @@ def train_rl():
     # model
     assert opts['model_sl_path'].split('.')[-1] == 'pth', 'Use pre-trained weights.'
     model_classifier = ActNetClassifier(ActNet(opts=opts,model_path=None), opts['num_actions'])#model_path=opts['model_sl_path'])
-    print(model_classifier.state_dict())
-    model_classifier.load_state_dict(torch.load('../model/actnet_sl_weight.pth'))
-    model = model_classifier.actnet
+    #model_classifier.load_state_dict(torch.load('../model/actnet_sl_weight.pth'))
+    model = ActNetRL(model_classifier.actnet, opts['num_actions'])
+    #model = model_classifier.actnet
     model = model.float()
-    
-
+    #for params in model.actnet.parameters():
+    #    params.requires_grad = False
+    '''
+    trainable_params = [
+                        {"params":model.lstm.parameters()},
+                        {"params":model.dense1.parameters()},
+                        {"params":model.dense2.parameters()},
+                        {"params":model.actor.parameters()},
+                        {"params":model.critic.parameters()}
+    ]
+    '''
     if opts['gpu']:
         model = model.cuda()
     model.train()
-
+    
     # evaluation
     best_loss = np.inf
     optimizer = optim.RMSprop(model.parameters(), lr=opts['lr'],
@@ -66,7 +75,7 @@ def train_rl():
     if opts['gpu']:
         cx, hx = cx.cuda(), hx.cuda()
 
-    model.set_hidden((hx, cx))
+    #model.set_hidden((hx, cx))
 
     # training loop
     k_list = np.random.permutation(len(dataset))
@@ -74,17 +83,21 @@ def train_rl():
     start_time = dt.now()
     while True:
         for j, k in enumerate(k_list):
+            #print(dataset[k].img_list[0])
+            if j != 0:
+                continue
             data_length = len(dataset[k].img_list)
             #data_length = 10## debug
-            losses = np.full(data_length, np.inf)
-            model.init_hidden(1, True)
+            losses = np.full(data_length, 100)
+            model.init_hidden(1, False)
 
             for f in range(data_length): 
+ 
                 #print(data_length)
-                
+                model.init_hidden(1, False)
                 img_n, bbox_n, gt_n = dataset[k].next_frame()
                 #exit()
-
+                print("bbox:", bbox_n)
                 #print("img shape:", img_n.shape[0])
                 #img_n = img_n.transpose(2,0,1)
                 img, bbox, gt = torch.from_numpy(img_n), torch.from_numpy(bbox_n), torch.from_numpy(gt_n)
@@ -106,8 +119,10 @@ def train_rl():
                 values = []
                 deep_copy_gt = gt_n.copy()
                 #start_time = dt.now()
+                print("~~~~~~~~~~~~Start Training Frame~~~~~~~~~~~~~")
+                
                 for i in range(opts['max_actions']):
-                    print("step {} in an episode:".format(i))
+                    #print("step {} in an episode:".format(i))
                     #print(state.unsqueeze(0))
                     #print((hx.float(), cx.float()))
                     value, logit, (hx, cx) = model(state.unsqueeze(0).float())
@@ -115,9 +130,7 @@ def train_rl():
                     prob, log_prob = F.softmax(logit), F.log_softmax(logit)
                     entropy = -(log_prob * prob).sum(1, keepdim=True)
                     
-                    
-                    
-                    #print("Prob:", log_prob)
+                    print("Prob:", prob.data[0].cpu())
                     #prob = np.asarray(prob)
                     #print("abc", isinstance(prob, torch.Tensor))
                     #print(prob.shape)
@@ -125,8 +138,8 @@ def train_rl():
                     if opts['gpu']:
                         prob = prob.cpu()
                     action, index = epsilon_greedy(prob, epsilon)
-                    #print("index:", index)
-                    
+                    print("Action index: ", index.numpy())
+            
                     if opts['gpu']:
                         log_prob = log_prob.gather(-1, Variable(index).long().cuda())
                     else:
@@ -135,16 +148,18 @@ def train_rl():
                     epsilon *= opts['epsilon_decay']
 
                     # take a step
-
+                    
                     bbox, done = get_bbox(action, bbox.cpu(), img_n.shape)
-                    print("GT:", gt_n)
+                    print("gt:", gt_n)
+                    print("bbox:", bbox.data.cpu())
                     next_state = crop_image(img_n, bbox.data.cpu().numpy())
                     next_state = next_state.transpose(2,0,1)
                     next_state = Variable( torch.from_numpy(next_state) )
                     #next_state = Variable(crop_image(img_n, bbox))
                     done = done or (i+1) >= opts['max_actions']
                     reward = 0 if not done else get_reward(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy()))
-                    print("get reward:", reward)
+                    #reward = 1 if index.numpy() == 10 else -1
+                    #print("overlap: {}, reward: {}".format(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy()), reward))
                     #exit()
                     # keep track of transitions
                     values.append(value)
@@ -153,6 +168,10 @@ def train_rl():
 
                     if done:
                         break
+                
+                print("overlap: {}, reward: {}".format(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy()), reward))
+                #if reward == 1:
+                    #input('press enter~~~~')
                 v = Variable(torch.zeros(1, 1))
                 values.append(v)
 
@@ -165,7 +184,7 @@ def train_rl():
                 entropy_coeff = opts['entropy_coeff']
 
                 for i in reversed(range(len(episode))):
-                    print("reversed i", i )
+                    #print("reversed i", i )
                     v = episode[i].reward + (gamma * v)
                     adv = v - values[i].cpu()
                     value_loss += 0.5 * adv.pow(2)
@@ -175,15 +194,17 @@ def train_rl():
                     delta_t = episode[i].reward + (gamma * values[i + 1].cpu().data) - values[i].cpu().data                    
                     gae = (gamma * tau * gae) + delta_t
                     if opts['gpu']:
-                        policy_loss -= (episode[i].log_prob * Variable(gae).cuda()) - (entropy_coeff * episode[i].entropy)
+                        policy_loss -= (episode[i].log_prob * Variable(gae).cuda())# - (entropy_coeff * episode[i].entropy)
                     else:
-                        policy_loss -= (episode[i].log_prob * Variable(gae)) - (entropy_coeff * episode[i].entropy)
-                    
+                        policy_loss -= (episode[i].log_prob * Variable(gae))# - (entropy_coeff * episode[i].entropy)
+                    #print('adv: ', adv)
+                    #input("press enter")
+                    #print('log_prob', episode[i].log_pro)
                 if opts['gpu']:
                     loss = policy_loss + opts['value_loss_coeff'] * value_loss.cuda()
                 else:
                     loss = policy_loss + opts['value_loss_coeff'] * value_loss
-                print("LOSS:", loss, f)
+                #print("LOSS:", loss.data[0])
                 
                 losses[f] = loss.data[0][0]
 
@@ -194,17 +215,17 @@ def train_rl():
 
                 # print progress
 
-                print("Class {}/{}, Frame {}/{}, Policy loss: {:.3f}, Value loss: {:.3f},\
-                    ".format(j+1, len(k_list),
-                                            f+1, data_length,
-                                            policy_loss.data[0][0], value_loss.data[0][0],
-                                            ))
+                #print("Class {}/{}, Frame {}/{}, Policy loss: {:.3f}, Value loss: {:.3f},\
+                #    ".format(j+1, len(k_list),
+                #                            f+1, data_length,
+                #                            policy_loss.data[0][0], value_loss.data[0][0],
+                #                            ))
                 
             if np.any(np.isinf(losses)):
                 raise RuntimeError("Infinite loss detected")
 
             curr_loss = losses.mean()
-            print("Mean loss: {:.3f}".format(curr_loss))
+            #print("Mean loss: {:.3f}".format(curr_loss))
             if curr_loss < best_loss:
                 best_loss = curr_loss
 
@@ -219,7 +240,7 @@ def train_rl():
 
                 if opts['gpu']:
                     model = model.cuda()
-        print("Mins: {:.3f}".format((dt.now()-start_time).total_seconds() / 60))
+        #print("Mins: {:.3f}".format((dt.now()-start_time).total_seconds() / 60))
 
 if __name__ == '__main__':
     train_rl()

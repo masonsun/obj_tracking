@@ -17,7 +17,7 @@ sys.path.insert(0,'../training')
 sys.path.insert(0,'../module')
 from options import opts
 #from train_rl import set_optimizer
-from actnet import ActNet , ActNetClassifier
+from actnet import ActNet , ActNetClassifier, ActNetRL
 
 from sample_generator import *
 
@@ -83,14 +83,17 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
     result_bb[0] = target_bbox
 
     # Init model
-    model = ActNet(opts=opts)
+    #model = ActNet(opts=opts)
     #model_classifier = ActNetClassifier(ActNet(opts=opts,model_path=None), opts['num_actions'])#model_path=opts['model_sl_path'])
     #print(model_classifier.state_dict())
-    #model_classifier.load_state_dict(torch.load('../model/actnet-rl-v2.pth'))
-    model.load_state_dict(torch.load('../model/actnet-rl-v2.pth'))
+    #model_classifier.load_state_dict(torch.load('../model/actnet_sl_weight.pth'))
+    #model.load_state_dict(torch.load('../model/actnet-rl-v2.pth'))
     #model = model_classifier.actnet
-    model = model.float()
-
+    #model = model.float()
+    model_classifier = ActNetClassifier(ActNet(opts=opts,model_path=None), opts['num_actions'])#model_path=opts['model_sl_path'])
+    model_classifier.load_state_dict(torch.load('../model/actnet_sl_weight.pth'))
+    model = ActNetRL(model_classifier.actnet, opts['num_actions'])
+    model.load_state_dict(torch.load('../model/actnet-rl-v2.pth'))
     if opts['gpu']:
         model = model.cuda()
     #model.set_learnable_params(opts['ft_layers'])
@@ -137,7 +140,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
     
     bbox_history_all = []
     #for i in range(len(img_list)):
-    for i in range(30):
+    for i in range(207):
     #tic = time.time()
     # Load image
         bbox_history = []
@@ -164,11 +167,16 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
             #value, logit, (hx, cx) = model((state.unsqueeze(0).float(), (hx.float(), cx.float())))
             value, logit, (hx, cx) = model(state.unsqueeze(0).float())
             prob, log_prob = F.softmax(logit), F.log_softmax(logit)
+            #print("Prob:", prob)
+            #exit()
+            print("h, c", hx)
+            
             model.set_hidden((hx, cx))
             
             one_hot_action = torch.zeros(opts['num_actions'])
             action = np.argmax(prob.data.numpy())
             one_hot_action[action] = 1
+            print(prob)
             print(action)
             bbox, done = get_bbox(one_hot_action, bbox, image_n.shape)
 

@@ -19,13 +19,13 @@ def load_data(data_path, img_home, arg=None):
     # TO-DO:
     # - GenDatasetRegion will be different for RL/SL/OL training.
     # - Use arg (str) to determine.
-    print(arg)
+    #print(arg)
 
     for k, (seq_name, seq) in enumerate(data.items()):
         img_list, gt = seq['images'], seq['gt']
         
         img_dir = os.path.join(img_home, seq_name)
-        print("img_dir: ", img_dir)
+        ##print("img_dir: ", img_dir)
         dataset[k] = GenDatasetRegion(img_dir, img_list, gt, opts, arg)
 
     return dataset
