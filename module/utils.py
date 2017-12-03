@@ -86,7 +86,13 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
         return bbox, True
     
     bbox_n = (bbox.data.numpy())
-    #print("bbox_n: ", bbox_n)
+
+    a = int(np.argmax(a))
+
+    # stop
+    if len(action_deltas) - 1 == a:
+        return bbox, True
+    
     #print("current bbox_n:", bbox_n)
     
     bbox_n[0] = bbox_n[0] + 0.5 * bbox_n[2]

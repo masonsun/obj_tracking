@@ -88,8 +88,8 @@ def train_rl():
                 continue
             data_length = len(dataset[k].img_list)
             #data_length = 10## debug
-            losses = np.full(data_length, 100)
-            model.init_hidden(1, False)
+            losses = np.full(data_length, np.inf)
+            model.init_hidden(1, opts['gpu'])
 
             for f in range(data_length): 
  
