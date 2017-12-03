@@ -41,7 +41,7 @@ def get_reward(iou):
     """
     if iou > opts['iou_criterion']:
         return 1
-    return -1
+    return -10
 
 
 def get_bbox(action, bbox, img_size, alpha=opts['alpha']):

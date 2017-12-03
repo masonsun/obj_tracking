@@ -139,6 +139,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
     # testing
     
     bbox_history_all = []
+    iou = np.array([])
     #for i in range(len(img_list)):
     for i in range(207):
     #tic = time.time()
@@ -208,6 +209,14 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
                     plt.draw()
                 if savefig:
                     fig.savefig(os.path.join(savefig_dir,'%03d_%d.jpg' %(i,k)),dpi=dpi)
+
+        #print(type( overlap_ratio(bbox_history_all[i][k], gt[i,:])))
+        #print(type(iou))
+        iou = np.concatenate((iou, overlap_ratio(bbox_history_all[i][k], gt[i,:])))
+        print(iou)
+        avgiou = iou.mean()
+        print("AVG IOU: ", avgiou)
+        #exit()
 
 
     

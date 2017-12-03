@@ -215,18 +215,19 @@ def train_rl():
 
                 # print progress
 
-                #print("Class {}/{}, Frame {}/{}, Policy loss: {:.3f}, Value loss: {:.3f},\
-                #    ".format(j+1, len(k_list),
-                #                            f+1, data_length,
-                #                            policy_loss.data[0][0], value_loss.data[0][0],
-                #                            ))
+                print("Class {}/{}, Frame {}/{}, Policy loss: {:.3f}, Value loss: {:.3f},\
+                    ".format(j+1, len(k_list),
+                                            f+1, data_length,
+                                            policy_loss.data[0][0], value_loss.data[0][0],
+                                            ))
                 
             if np.any(np.isinf(losses)):
                 raise RuntimeError("Infinite loss detected")
 
             curr_loss = losses.mean()
             print("Mean loss: {:.3f}".format(curr_loss))
-            if curr_loss < best_loss:
+            #if curr_loss < best_loss:
+            if True:
                 best_loss = curr_loss
 
 
