@@ -32,8 +32,8 @@ opts = {
     'padding': 16,
 
     # Tracking
-    'epsilon': 0.2,
-    'epsilon_decay': 0.98,
+    'epsilon': 0.5,
+    'epsilon_decay': 0.9,
     'max_actions': 20,
     'alpha': 0.03,
     'iou_criterion': 0.7,

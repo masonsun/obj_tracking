@@ -27,7 +27,8 @@ class GenDatasetRegion(data.Dataset):
         self.crop_size = opts['img_size']
         self.padding = opts['padding']
 
-        self.index = np.random.permutation(len(self.img_list))
+        #self.index = np.random.permutation(len(self.img_list))
+        self.index = np.arange(len(self.img_list))
         self.pointer = 0
 
         self.image = Image.open(self.img_list[0]).convert('RGB')
