@@ -9,7 +9,7 @@ from torch.autograd import Variable
 
 from options import opts
 from load_data import load_data
-from utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_image
+from utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_image, view_image
 from actnet import ActNet, ActNetClassifier, ActNetRL
 
 SEQ_HOME = '../dataset'
@@ -43,9 +43,11 @@ def train_rl():
     model = ActNetRL(model_classifier.actnet, opts['num_actions'])
     #model = model_classifier.actnet
     model = model.float()
-    for params in model.actnet.parameters():
-        params.requires_grad = False
+ 
+#    for params in model.actnet.parameters():
+#        params.requires_grad = False
     
+    '''
     trainable_params = [
                         {"params":model.lstm.parameters()},
                         {"params":model.dense1.parameters()},
@@ -53,14 +55,15 @@ def train_rl():
                         {"params":model.actor.parameters()},
                         {"params":model.critic.parameters()}
     ]
-    
+    '''
+
     if opts['gpu']:
         model = model.cuda()
     model.train()
     
     # evaluation
     best_loss = np.inf
-    optimizer = optim.RMSprop(trainable_params, lr=opts['lr'],
+    optimizer = optim.RMSprop(model.parameters(), lr=opts['lr'],
                               momentum=opts['momentum'], weight_decay=opts['w_decay'])
 
     # initializations
@@ -107,6 +110,8 @@ def train_rl():
                     #img_n, bbox_n = img_n.cuda(), bbox_n.cuda()
 
                 state = crop_image(img_n, bbox_n)
+                #view_image(state)
+                #exit()
                 state = state.transpose(2,0,1)
 
                 state = Variable(torch.from_numpy(state))
@@ -119,14 +124,19 @@ def train_rl():
                 values = []
                 deep_copy_gt = gt_n.copy()
                 #start_time = dt.now()
+                action = torch.Tensor(opts['num_actions']).zero_()
+
                 print("~~~~~~~~~~~~Start Training Frame~~~~~~~~~~~~~")
-                
+                action_history = []
                 for i in range(opts['max_actions']):
                     #print("step {} in an episode:".format(i))
                     #print(state.unsqueeze(0))
                     #print((hx.float(), cx.float()))
-                    value, logit, (hx, cx) = model(state.unsqueeze(0).float())
-                    model.set_hidden((hx, cx))
+                    action = Variable(action)
+                    if opts['gpu']:
+                        action = action.cuda()
+                    value, logit = model(state.unsqueeze(0).float(), action)
+                    #model.set_hidden((hx, cx))
                     prob, log_prob = F.softmax(logit), F.log_softmax(logit)
                     entropy = -(log_prob * prob).sum(1, keepdim=True)
                     
@@ -138,8 +148,8 @@ def train_rl():
                     if opts['gpu']:
                         prob = prob.cpu()
                     action, index = epsilon_greedy(prob, epsilon)
-                    print("Action index: ", index.numpy())
-            
+                    #print("Action index: ", index.numpy()[0,0])
+                    action_history.append(index.numpy()[0,0])
                     if opts['gpu']:
                         log_prob = log_prob.gather(-1, Variable(index).long().cuda())
                     else:
@@ -150,8 +160,8 @@ def train_rl():
                     # take a step
                     
                     bbox, done = get_bbox(action, bbox.cpu(), img_n.shape)
-                    print("gt:", gt_n)
-                    print("bbox:", bbox.data.cpu())
+                    #print("gt:", gt_n)
+                    #print("bbox:", bbox.data.cpu())
                     next_state = crop_image(img_n, bbox.data.cpu().numpy())
                     next_state = next_state.transpose(2,0,1)
                     next_state = Variable( torch.from_numpy(next_state) )
@@ -168,7 +178,7 @@ def train_rl():
 
                     if done:
                         break
-                
+                print("action history: ", action_history)
                 print("overlap: {}, reward: {}".format(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy()), reward))
                 #if reward == 1:
                     #input('press enter~~~~')

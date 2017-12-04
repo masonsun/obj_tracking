@@ -124,32 +124,33 @@ class ActNetRL(nn.Module):
     def __init__(self, actnet, num_actions):
         super(ActNetRL, self).__init__()
         self.actnet = actnet
-        self.lstm = nn.LSTMCell(actnet.tf * 2 * 2, 250)
-        self.dense1 = nn.Linear(250, 100)
-        self.dense1_act = nn.LeakyReLU()
-        self.dense2 = nn.Linear(100, 50)
-        self.dense2_act = nn.LeakyReLU()
+        self.action_lstm = nn.LSTMCell(num_actions, 32)
+        self.actor_dense1 = nn.Linear(actnet.tf * 2 * 2 + 32, 100)
+        self.actor_dense1_act = nn.LeakyReLU()
+        self.actor_dense2 = nn.Linear(100, 50)
+        self.actor_dense2_act = nn.LeakyReLU()
         self.actor = nn.Linear(50, num_actions)
-        self.critic = nn.Linear(50, 1)
+        self.critic_dense1 = nn.Linear(actnet.tf * 2 * 2 + 32, 100)
+        self.critic_dense1_act = nn.LeakyReLU()
+        self.critic_dense2 = nn.Linear(100, 50)
+        self.critic_dense2_act = nn.LeakyReLU()
+        self.critic_dense3 = nn.Linear(50, 1)
+        self.critic = nn.Tanh()
         self.hidden = (None, None)
 
     def set_hidden(self, hidden):
         hx, cx = hidden
         self.hidden = (autograd.Variable(hx.data, requires_grad=True), autograd.Variable(cx.data, requires_grad=True))
 
-
     def init_hidden(self, num_examples, cuda = False):
-                # Before we've done anything, we dont have any hidden state.
-                # Refer to the Pytorch documentation to see exactly
-                # why they have this dimensionality.
-                # The axes semantics are (num_layers, minibatch_size, hidden_dim)
-                # 20 = batch_pos + batch_neg in gen_batch class
-                hx, cx = (autograd.Variable(torch.zeros(num_examples, 250), requires_grad=True), autograd.Variable(torch.zeros(num_examples, 250), requires_grad=True))
+                
+                hx, cx = (autograd.Variable(torch.zeros(num_examples, 32), requires_grad=True), autograd.Variable(torch.zeros(num_examples, 32), requires_grad=True))
                 if cuda:
                     hx, cx = hx.cuda(), cx.cuda()
                 self.hidden = (hx, cx)
 
-    def forward(self, x):
+    def forward(self, x, actions):
+
         x = self.actnet.conv1(x)
         x = self.actnet.conv1_act(x)
         x = self.actnet.mp1(x)
@@ -166,15 +167,22 @@ class ActNetRL(nn.Module):
         x = self.actnet.conv5_act(x)
 
         # actor-critic
+        hx, cx = self.action_lstm(actions, self.hidden)
         x = x.view(-1, self.actnet.tf * 2 * 2)
-        
-        hx, cx = self.lstm(x, self.hidden)
-        x = hx
-        x = self.dense1(x)
-        x = self.dense1_act(x)
-        x = self.dense2(x)
-        x = self.dense2_act(x)
-        actor = self.actor(x)
-        critic = self.critic(x)
-        return nn.Tanh()(critic), actor, (hx, cx)
+        x = torch.cat([x, hx], dim = 1)
+        actor = self.actor_dense1(x)
+        actor = self.actor_dense1_act(actor)
+        actor = self.actor_dense2(actor)
+        actor = self.actor_dense2_act(actor)
+        actor = self.actor(actor)
+        critic = self.critic_dense1(x)
+        critic = self.critic_dense1_act(critic)
+        critic = self.critic_dense2(critic)
+        critic = self.critic_dense2_act(critic)
+        critic = self.critic_dense3(critic)
+        critic = self.critic(critic)
+
+        # update hidden state
+        self.set_hidden((hx, cx))
+        return critic, actor
         

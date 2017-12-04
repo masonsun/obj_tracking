@@ -179,6 +179,10 @@ def crop_image(img, bbox, img_size=opts['img_size'], padding=opts['padding'], va
     """
 
     x, y, w, h = np.array(bbox, dtype='float32')
+    x -= 0.1 * w
+    y -= 0.1 * h
+    w *= 1.2 
+    h *= 1.2
 
     half_w, half_h = w / 2, h / 2
     center_x, center_y = x + half_w, y + half_h
