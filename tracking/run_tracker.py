@@ -141,7 +141,10 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
     bbox_history_all = []
     iou = np.array([])
     #for i in range(len(img_list)):
-    for i in range(207):
+    for i in range(20,207):
+        #i = 20
+    #for i in range(3):
+        print(i)
     #tic = time.time()
     # Load image
         bbox_history = []
@@ -151,8 +154,8 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
         image_n = image.copy()
         #exit()
         image_n = np.asarray(image_n)
-        if i  in (0,10,30):
-            bbox_n = gt[i].copy()
+        if i  in range(20,30):
+            bbox_n = gt[i-10].copy()
             bbox = torch.from_numpy(bbox_n)
             bbox = Variable(bbox)
             print("GT: box", bbox_n)
@@ -163,34 +166,46 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
         #print("state: ", state)
         state = Variable(torch.from_numpy(state))
         
+        #action = torch.Tensor(opts['num_actions']).zero_()
+        one_hot_action = torch.zeros(opts['num_actions'])
         for j in range(opts['max_actions']):
-        
+            #print("Wei", model.actor_dense1.weight)
+            #input("~~~~")
             #value, logit, (hx, cx) = model((state.unsqueeze(0).float(), (hx.float(), cx.float())))
-            value, logit, (hx, cx) = model(state.unsqueeze(0).float())
+            one_hot_action = Variable(one_hot_action)
+            value, logit = model(state.unsqueeze(0).float(), one_hot_action)
+            #value, logit, (hx, cx) = model(state.unsqueeze(0).float())
             prob, log_prob = F.softmax(logit), F.log_softmax(logit)
             print("Prob:", prob)
             #exit()
             
             
-            model.set_hidden((hx, cx))
+            #model.set_hidden((hx, cx))
             
             one_hot_action = torch.zeros(opts['num_actions'])
-            action = np.argmax(prob.data.numpy())
-            one_hot_action[action] = 1
-            print(action)
+            action_n = np.argmax(prob.data.numpy())
+            one_hot_action[action_n] = 1
+            print("action:", action_n)
             bbox, done = get_bbox(one_hot_action, bbox, image_n.shape)
 
             print("bbox:", bbox)
             bbox_n_copy = bbox_n.copy()
             bbox_history.append(bbox_n_copy)
+
+
             if done:
                 break
+
+            next_state = crop_image(image_n, bbox.data.cpu().numpy())
+            next_state = next_state.transpose(2,0,1)
+            next_state = Variable( torch.from_numpy(next_state) )
+            state = next_state
             #exit()
         bbox_history_all.append(bbox_history)
         #print("bbox_his",bbox_history_all[i][0][:2])
         #model()
         #print("his",len(bbox_history_all))
-        for k in range(len(bbox_history_all[i])):
+        for k in range(len(bbox_history)):
         #for k in range(10):
             if display or savefig:
                 im.set_data(image)
@@ -200,19 +215,20 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
                     gt_rect.set_width(gt[i,2])
                     gt_rect.set_height(gt[i,3])
 
-                rect.set_xy(bbox_history_all[i][k][:2])
-                rect.set_width(bbox_history_all[i][k][2])
-                rect.set_height(bbox_history_all[i][k][3])
+                rect.set_xy(bbox_history[k][:2])
+                rect.set_width(bbox_history[k][2])
+                rect.set_height(bbox_history[k][3])
                 
                 if display:
                     plt.pause(.01)
                     plt.draw()
                 if savefig:
                     fig.savefig(os.path.join(savefig_dir,'%03d_%d.jpg' %(i,k)),dpi=dpi)
-
+        
+        input("~~~~~~~~~")
         #print(type( overlap_ratio(bbox_history_all[i][k], gt[i,:])))
         #print(type(iou))
-        iou = np.concatenate((iou, overlap_ratio(bbox_history_all[i][k], gt[i,:])))
+        iou = np.concatenate((iou, overlap_ratio(bbox_history[k], gt[i,:])))
         print(iou)
         avgiou = iou.mean()
         print("AVG IOU: ", avgiou)
