@@ -144,7 +144,8 @@ def epsilon_greedy(action, epsilon,  num_actions=opts['num_actions']):
     # one-hot encoding of selected action
     one_hot_action = torch.zeros(num_actions)
     index = np.random.choice(np.arange(num_actions), p=p)
-    
+    #print("~~~~~~",type(index)
+    #exit()
     #debug 
     #if i == 10:
     #    index = np.int64(10)

@@ -97,7 +97,7 @@ class GenDatasetRegion(data.Dataset):
             #pos_examples = gen_samples(self.pos_generator, bbox, n_pos, overlap_range=self.overlap_pos)
             #pos_regions = np.concatenate((pos_regions, self.extract_regions(image, pos_examples)),axis=0)
         gt_box = bbox.copy()
-        bboxi = self.gt[bbox_idx].copy()
+        bbox = self.gt[bbox_idx].copy()
         
         #print(gt_box, bbox)
         #pos_regions = torch.from_numpy(pos_regions).float()

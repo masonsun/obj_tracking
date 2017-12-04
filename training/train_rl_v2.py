@@ -86,13 +86,15 @@ def train_rl():
 
     # training loop
     k_list = np.random.permutation(len(dataset))
-
+    k_list = np.arange(len(dataset))
     start_time = dt.now()
     while True:
         for j, k in enumerate(k_list):
-            print(dataset[k].img_list[0])
-            if j != 0:
+            
+            if j != 1:
                 continue
+            print(dataset[k].img_list[0])
+            #exit()
             data_length = len(dataset[k].img_list)
             #data_length = 10## debug
             losses = np.full(data_length, np.inf)
@@ -103,6 +105,7 @@ def train_rl():
                 #print(data_length)
                 model.init_hidden(1, opts['gpu'])
                 img_n, bbox_n, gt_n = dataset[k].next_frame()
+                current_iou = 0
                 #exit()
                 #print("bbox:", bbox_n)
                 #print("img shape:", img_n.shape[0])
@@ -154,10 +157,21 @@ def train_rl():
                     #prob = np.asarray(prob)
                     #print("abc", isinstance(prob, torch.Tensor))
                     #print(prob.shape)
+                    #index = torch.LongTensor([[10]])
+                    
                     
                     if opts['gpu']:
                         prob = prob.cpu()
-                    action, index = epsilon_greedy(prob, epsilon)
+
+                    if (current_iou>opts['iou_criterion']):
+                        action = torch.zeros(opts['num_actions'])
+                        action[10] = 1
+                        index = torch.LongTensor([[10]])
+                        
+                    else:
+                        action, index = epsilon_greedy(prob, epsilon)
+                    #print(index)
+                    #exit()
                     #print("Action index: ", index.numpy()[0,0])
                     action_history.append(index.numpy()[0,0])
                     if opts['gpu']:
@@ -170,6 +184,7 @@ def train_rl():
                     # take a step
                     
                     bbox, done = get_bbox(action, bbox.cpu(), img_n.shape)
+                    current_iou = overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy())
                     #print("gt:", gt_n)
                     #print("bbox:", bbox.data.cpu())
                     next_state = crop_image(img_n, bbox.data.cpu().numpy())
