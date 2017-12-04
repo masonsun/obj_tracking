@@ -134,8 +134,7 @@ class ActNetRL(nn.Module):
         self.critic_dense1_act = nn.LeakyReLU()
         self.critic_dense2 = nn.Linear(100, 50)
         self.critic_dense2_act = nn.LeakyReLU()
-        self.critic_dense3 = nn.Linear(50, 1)
-        self.critic = nn.Tanh()
+        self.critic = nn.Linear(50, 1)
         self.hidden = (None, None)
 
     def set_hidden(self, hidden):
@@ -149,7 +148,7 @@ class ActNetRL(nn.Module):
                     hx, cx = hx.cuda(), cx.cuda()
                 self.hidden = (hx, cx)
 
-    def forward(self, x, actions):
+    def forward(self, x, act_prob):
 
         x = self.actnet.conv1(x)
         x = self.actnet.conv1_act(x)
@@ -167,7 +166,7 @@ class ActNetRL(nn.Module):
         x = self.actnet.conv5_act(x)
 
         # actor-critic
-        hx, cx = self.action_lstm(actions, self.hidden)
+        hx, cx = self.action_lstm(act_prob, self.hidden)
         x = x.view(-1, self.actnet.tf * 2 * 2)
         x = torch.cat([x, hx], dim = 1)
         actor = self.actor_dense1(x)
@@ -179,7 +178,6 @@ class ActNetRL(nn.Module):
         critic = self.critic_dense1_act(critic)
         critic = self.critic_dense2(critic)
         critic = self.critic_dense2_act(critic)
-        critic = self.critic_dense3(critic)
         critic = self.critic(critic)
 
         # update hidden state

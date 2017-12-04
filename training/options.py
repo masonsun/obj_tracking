@@ -19,8 +19,8 @@ opts = {
     'overlap_neg': [0, 0.5],
 
     # Gradient descent
-    'lr': 1e-5,
-    'w_decay': 5e-4,
+    'lr': 1e-4,
+    'w_decay': 0.001,
     'momentum': 0.9,
     'grad_clip': 10,
 

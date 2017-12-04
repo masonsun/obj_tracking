@@ -12,6 +12,8 @@ from load_data import load_data
 from utils import overlap_ratio, get_reward, get_bbox, epsilon_greedy, crop_image, view_image
 from actnet import ActNet, ActNetClassifier, ActNetRL
 
+
+np.set_printoptions(3)
 SEQ_HOME = '../dataset'
 SEQ_LIST_PATH = 'data/human.txt'
 OUTPUT_PATH = 'data/human.pkl'
@@ -41,9 +43,11 @@ def train_rl():
     model_classifier = ActNetClassifier(ActNet(opts=opts,model_path=None), opts['num_actions'])#model_path=opts['model_sl_path'])
     #model_classifier.load_state_dict(torch.load('../model/actnet_sl_weight.pth'))
     model = ActNetRL(model_classifier.actnet, opts['num_actions'])
+    #model.load_state_dict(torch.load('../model/actnet-rl-v2.pth'))
     #model = model_classifier.actnet
     model = model.float()
- 
+    #print("model actor dense1 weight: ", model.actor_dense1.weight.data)
+    #raise Exception 
 #    for params in model.actnet.parameters():
 #        params.requires_grad = False
     
@@ -87,8 +91,8 @@ def train_rl():
     while True:
         for j, k in enumerate(k_list):
             print(dataset[k].img_list[0])
-            #if j != 0:
-            #    continue
+            if j != 0:
+                continue
             data_length = len(dataset[k].img_list)
             #data_length = 10## debug
             losses = np.full(data_length, np.inf)
@@ -100,7 +104,7 @@ def train_rl():
                 model.init_hidden(1, opts['gpu'])
                 img_n, bbox_n, gt_n = dataset[k].next_frame()
                 #exit()
-                print("bbox:", bbox_n)
+                #print("bbox:", bbox_n)
                 #print("img shape:", img_n.shape[0])
                 #img_n = img_n.transpose(2,0,1)
                 img, bbox, gt = torch.from_numpy(img_n), torch.from_numpy(bbox_n), torch.from_numpy(gt_n)
@@ -124,7 +128,9 @@ def train_rl():
                 values = []
                 deep_copy_gt = gt_n.copy()
                 #start_time = dt.now()
-                action = torch.Tensor(opts['num_actions']).zero_()
+                act_prob = Variable(torch.ones(opts['num_actions']))
+                for i in range(opts['num_actions']):
+                    act_prob.data[i] = 1.0 / opts['num_actions']
 
                 print("~~~~~~~~~~~~Start Training Frame~~~~~~~~~~~~~")
                 action_history = []
@@ -132,15 +138,19 @@ def train_rl():
                     #print("step {} in an episode:".format(i))
                     #print(state.unsqueeze(0))
                     #print((hx.float(), cx.float()))
-                    action = Variable(action)
+                    #prob = Variable(prob)
                     if opts['gpu']:
-                        action = action.cuda()
-                    value, logit = model(state.unsqueeze(0).float(), action)
+                        act_prob = act_prob.cuda()
+                    #print("state: ", state)
+                    value, logit = model(state.unsqueeze(0).float(), act_prob)
                     #model.set_hidden((hx, cx))
                     prob, log_prob = F.softmax(logit), F.log_softmax(logit)
                     entropy = -(log_prob * prob).sum(1, keepdim=True)
+                    act_prob = prob.clone()
                     
-                    print("Prob:", prob.data[0].cpu())
+                    print("Prob:", prob.data[0].cpu().numpy())
+                    print("logprob:", log_prob.data[0].cpu().numpy())
+                    print("value: ", value)
                     #prob = np.asarray(prob)
                     #print("abc", isinstance(prob, torch.Tensor))
                     #print(prob.shape)
@@ -165,6 +175,10 @@ def train_rl():
                     next_state = crop_image(img_n, bbox.data.cpu().numpy())
                     next_state = next_state.transpose(2,0,1)
                     next_state = Variable( torch.from_numpy(next_state) )
+                    if opts['gpu']:
+                        state = next_state.cuda()
+                    else:
+                        state = next_state
                     #next_state = Variable(crop_image(img_n, bbox))
                     done = done or (i+1) >= opts['max_actions']
                     reward = 0 if not done else get_reward(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy()))
@@ -217,7 +231,8 @@ def train_rl():
                 #print("LOSS:", loss.data[0])
                 
                 losses[f] = loss.data[0][0]
-
+                #print("episode: ", episode)
+                print("Loss: ", loss.data[0][0])
                 optimizer.zero_grad()
                 loss.backward()
                 torch.nn.utils.clip_grad_norm(model.parameters(), opts['grad_clip'])

@@ -86,18 +86,18 @@ class GenDatasetRegion(data.Dataset):
 
         pos_regions = np.empty((0,3,self.crop_size,self.crop_size))
         for i, (img_path, bbox) in enumerate(zip(self.img_list[idx], self.gt[idx])):
-            bbox_idx = idx[0] - 8
+            bbox_idx = idx[0] - np.random.randint(1,10)
             if bbox_idx<0:
                 bbox_idx = 0
             #print("bbox_idx, IDX:", bbox_idx, idx)
             image = Image.open(img_path).convert('RGB')
             image = np.asarray(image)
-
+            #print("hahha", np.random.randint(1,10))
             #n_pos = (self.batch_pos - len(pos_regions)) // (self.batch_frames - i)
             #pos_examples = gen_samples(self.pos_generator, bbox, n_pos, overlap_range=self.overlap_pos)
             #pos_regions = np.concatenate((pos_regions, self.extract_regions(image, pos_examples)),axis=0)
         gt_box = bbox.copy()
-        bbox = self.gt[bbox_idx].copy()
+        bboxi = self.gt[bbox_idx].copy()
         
         #print(gt_box, bbox)
         #pos_regions = torch.from_numpy(pos_regions).float()

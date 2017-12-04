@@ -41,7 +41,7 @@ def get_reward(iou):
     """
     if iou > opts['iou_criterion']:
         return 1
-    return -10
+    return -1
 
 
 def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
@@ -57,7 +57,7 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
     action_deltas = [
         [-1, 0, 0, 0],   # left
         [+1, 0, 0, 0],   # right
-        [+2, 0, 0, 0],   # shorten width
+        [-2, 0, 0, 0],   # shorten width
         [+2, 0, 0, 0],   # elongate width
         [0, -1, 0, 0],   # up
         [0, +1, 0, 0],   # down
@@ -86,8 +86,6 @@ def get_bbox(action, bbox, img_size, alpha=opts['alpha']):
         return bbox, True
     
     bbox_n = (bbox.data.numpy())
-
-    a = int(np.argmax(a))
 
     # stop
     if len(action_deltas) - 1 == a:
