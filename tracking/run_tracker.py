@@ -154,8 +154,8 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
         image_n = image.copy()
         #exit()
         image_n = np.asarray(image_n)
-        if i  in range(20,30):
-            bbox_n = gt[i-10].copy()
+        if i  in [20,30]:
+            bbox_n = gt[i-1].copy()
             bbox = torch.from_numpy(bbox_n)
             bbox = Variable(bbox)
             print("GT: box", bbox_n)
@@ -225,7 +225,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
                 if savefig:
                     fig.savefig(os.path.join(savefig_dir,'%03d_%d.jpg' %(i,k)),dpi=dpi)
         
-        input("~~~~~~~~~")
+        #input("~~~~~~~~~")
         #print(type( overlap_ratio(bbox_history_all[i][k], gt[i,:])))
         #print(type(iou))
         iou = np.concatenate((iou, overlap_ratio(bbox_history[k], gt[i,:])))

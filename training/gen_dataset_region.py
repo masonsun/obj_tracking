@@ -86,7 +86,7 @@ class GenDatasetRegion(data.Dataset):
 
         pos_regions = np.empty((0,3,self.crop_size,self.crop_size))
         for i, (img_path, bbox) in enumerate(zip(self.img_list[idx], self.gt[idx])):
-            bbox_idx = idx[0] - np.random.randint(1,10)
+            bbox_idx = idx[0] - 0#np.random.randint(1,10)
             if bbox_idx<0:
                 bbox_idx = 0
             #print("bbox_idx, IDX:", bbox_idx, idx)

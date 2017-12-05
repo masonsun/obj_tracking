@@ -85,7 +85,7 @@ def train_rl():
     #model.set_hidden((hx, cx))
 
     # training loop
-    k_list = np.random.permutation(len(dataset))
+    #k_list = np.random.permutation(len(dataset))
     k_list = np.arange(len(dataset))
     start_time = dt.now()
     while True:
@@ -104,8 +104,14 @@ def train_rl():
  
                 #print(data_length)
                 model.init_hidden(1, opts['gpu'])
-                img_n, bbox_n, gt_n = dataset[k].next_frame()
+                #img_n, bbox_n, gt_n = dataset[k].next_frame()
+                img_n, bbox_new, gt_n = dataset[k].next_frame()
                 current_iou = 0
+                #print("~~~~~~~~",f)
+                if f%10 == 1 or f==0:
+                    bbox_n = bbox_new
+                else:
+                    bbox_n = bbox.data.cpu().numpy()
                 #exit()
                 #print("bbox:", bbox_n)
                 #print("img shape:", img_n.shape[0])
