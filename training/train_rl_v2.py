@@ -15,8 +15,8 @@ from actnet import ActNet, ActNetClassifier, ActNetRL
 
 np.set_printoptions(3)
 SEQ_HOME = '../dataset'
-SEQ_LIST_PATH = 'data/human.txt'
-OUTPUT_PATH = 'data/human.pkl'
+SEQ_LIST_PATH = 'data/bicycle.txt'
+OUTPUT_PATH = 'data/bicycle.pkl'
 
 np.random.seed(123)
 torch.manual_seed(456)
@@ -91,9 +91,10 @@ def train_rl():
     while True:
         for j, k in enumerate(k_list):
             
-            if j != 1:
-                continue
+            #if j != 1:
+            #    continue
             print(dataset[k].img_list[0])
+            
             #exit()
             data_length = len(dataset[k].img_list)
             #data_length = 10## debug

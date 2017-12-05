@@ -3,8 +3,8 @@ import numpy as np
 import pickle
 
 SEQ_HOME = '../dataset/'
-SEQ_LIST_PATH = 'data/human.txt'
-OUTPUT_PATH = 'data/human.pkl'
+SEQ_LIST_PATH = 'data/bicycle.txt'
+OUTPUT_PATH = 'data/bicycle.pkl'
 
 with open(SEQ_LIST_PATH, 'r') as fp:
     seq_list = fp.read().splitlines()
