@@ -162,6 +162,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
         #exit()
         #TODO : save predicted box in result_bb
         state = crop_image(image_n, bbox_n)
+        state = (state - np.mean(state, (0,1)) ) / np.std(state, axis=(0,1))
         state = state.transpose(2,0,1)
         #print("state: ", state)
         state = Variable(torch.from_numpy(state))
@@ -203,8 +204,9 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
 
             if done:
                 break
-            raise Exception
+            #raise Exception
             next_state = crop_image(image_n, bbox.data.cpu().numpy())
+            next_state = (next_state - np.mean(next_state, (0,1)) ) / np.std(next_state, axis=(0,1))
             next_state = next_state.transpose(2,0,1)
             next_state = Variable( torch.from_numpy(next_state) )
             state = next_state

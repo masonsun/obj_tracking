@@ -175,6 +175,7 @@ class ActNetRL(nn.Module):
         actor = self.actor_dense2(actor)
         actor = self.actor_dense2_act(actor)
         actor = self.actor(actor)
+        actor = torch.clamp(actor, 1e-10, 1e+10)
         critic = self.critic_dense1(x)
         critic = self.critic_dense1_act(critic)
         
@@ -182,7 +183,7 @@ class ActNetRL(nn.Module):
         critic = self.critic_dense2_act(critic)
         critic_second = critic.clone()
         critic = self.critic(critic)
-
+        
         # update hidden state
         self.set_hidden((hx, cx))
         return critic, actor, first, critic_second
