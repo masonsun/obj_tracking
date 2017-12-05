@@ -107,6 +107,11 @@ def train_rl():
                 model.init_hidden(1, opts['gpu'])
                 #img_n, bbox_n, gt_n = dataset[k].next_frame()
                 img_n, bbox_new, gt_n = dataset[k].next_frame()
+                #img_n = (img_n - np.mean(img_n, (0,1)) ) / np.std(img_n, axis=(0,1))
+                
+                #print(img_n)
+                #print(img_nn)
+                #exit()
                 current_iou = 0
                 #print("~~~~~~~~",f)
                 if f%10 == 1 or f==0:
@@ -124,6 +129,8 @@ def train_rl():
                     #img_n, bbox_n = img_n.cuda(), bbox_n.cuda()
 
                 state = crop_image(img_n, bbox_n)
+                state = (state - np.mean(state, (0,1)) ) / np.std(state, axis=(0,1))
+                #print(state)
                 #view_image(state)
                 #exit()
                 state = state.transpose(2,0,1)
@@ -152,8 +159,12 @@ def train_rl():
                     if opts['gpu']:
                         act_prob = act_prob.cuda()
                     #print("state: ", state)
-                    value, logit = model(state.unsqueeze(0).float(), act_prob)
+                    value, logit, first, critic_second = model(state.unsqueeze(0).float(), act_prob)
                     #model.set_hidden((hx, cx))
+                    #print(first.data)
+                    #print("-----------------------------------------")
+                    #print(critic_second.data)
+                    #raise Exception
                     prob, log_prob = F.softmax(logit), F.log_softmax(logit)
                     entropy = -(log_prob * prob).sum(1, keepdim=True)
                     act_prob = prob.clone()
@@ -195,6 +206,8 @@ def train_rl():
                     #print("gt:", gt_n)
                     #print("bbox:", bbox.data.cpu())
                     next_state = crop_image(img_n, bbox.data.cpu().numpy())
+                    next_state = (next_state - np.mean(next_state, (0,1)) ) / np.std(next_state, axis=(0,1))
+
                     next_state = next_state.transpose(2,0,1)
                     next_state = Variable( torch.from_numpy(next_state) )
                     if opts['gpu']:
