@@ -173,7 +173,15 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
             #input("~~~~")
             #value, logit, (hx, cx) = model((state.unsqueeze(0).float(), (hx.float(), cx.float())))
             one_hot_action = Variable(one_hot_action)
-            value, logit = model(state.unsqueeze(0).float(), one_hot_action)
+            #value, logit = model(state.unsqueeze(0).float(), one_hot_action)
+
+            value, logit, first, critic_second = model(state.unsqueeze(0).float(), one_hot_action)
+            #model.set_hidden((hx, cx))
+            print(first.data)
+            print("-----------------------------------------")
+            print(critic_second.data)
+            
+
             #value, logit, (hx, cx) = model(state.unsqueeze(0).float())
             prob, log_prob = F.softmax(logit), F.log_softmax(logit)
             print("Prob:", prob)
@@ -195,7 +203,7 @@ def run_actnet(img_list, init_bbox, gt=None, savefig_dir='', display=False):
 
             if done:
                 break
-
+            raise Exception
             next_state = crop_image(image_n, bbox.data.cpu().numpy())
             next_state = next_state.transpose(2,0,1)
             next_state = Variable( torch.from_numpy(next_state) )

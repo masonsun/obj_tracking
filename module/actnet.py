@@ -169,6 +169,7 @@ class ActNetRL(nn.Module):
         hx, cx = self.action_lstm(act_prob, self.hidden)
         x = x.view(-1, self.actnet.tf * 2 * 2)
         x = torch.cat([x, hx], dim = 1)
+        first = x.clone()
         actor = self.actor_dense1(x)
         actor = self.actor_dense1_act(actor)
         actor = self.actor_dense2(actor)
@@ -176,11 +177,13 @@ class ActNetRL(nn.Module):
         actor = self.actor(actor)
         critic = self.critic_dense1(x)
         critic = self.critic_dense1_act(critic)
+        
         critic = self.critic_dense2(critic)
         critic = self.critic_dense2_act(critic)
+        critic_second = critic.clone()
         critic = self.critic(critic)
 
         # update hidden state
         self.set_hidden((hx, cx))
-        return critic, actor
+        return critic, actor, first, critic_second
         
