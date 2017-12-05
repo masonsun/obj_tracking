@@ -145,12 +145,13 @@ def train_rl():
                 values = []
                 deep_copy_gt = gt_n.copy()
                 #start_time = dt.now()
-                act_prob = Variable(torch.ones(opts['num_actions']))
+                act_prob = Variable(torch.ones(1, opts['num_actions']))
                 for i in range(opts['num_actions']):
-                    act_prob.data[i] = 1.0 / opts['num_actions']
-
+                    act_prob.data[0, i] = 1.0 / opts['num_actions']
+                prev_act = Variable(torch.zeros(1, opts['num_actions']))
                 print("~~~~~~~~~~~~Start Training Frame~~~~~~~~~~~~~")
                 action_history = []
+                prev_iou = 0
                 for i in range(opts['max_actions']):
                     #print("step {} in an episode:".format(i))
                     #print(state.unsqueeze(0))
@@ -158,20 +159,21 @@ def train_rl():
                     #prob = Variable(prob)
                     if opts['gpu']:
                         act_prob = act_prob.cuda()
+                    prev_act = prev_act.cuda()
                     #print("state: ", state)
-                    value, logit, first, critic_second = model(state.unsqueeze(0).float(), act_prob)
+                    value, logit, first, critic_second = model(state.unsqueeze(0).float(), act_prob, prev_act)
                     #model.set_hidden((hx, cx))
                     #print(first.data)
                     #print("-----------------------------------------")
                     #print(critic_second.data)
                     #raise Exception
                     prob, log_prob = F.softmax(logit), F.log_softmax(logit)
+                    prob = torch.clamp(prob, 1e-5, 1e+5)
                     entropy = -(log_prob * prob).sum(1, keepdim=True)
                     act_prob = prob.clone()
-                    
                     print("Prob:", prob.data[0].cpu().numpy())
-                    print("logprob:", log_prob.data[0].cpu().numpy())
-                    print("value: ", value)
+                    #print("logprob:", log_prob.data[0].cpu().numpy())
+                    #print("value: ", value)
                     #prob = np.asarray(prob)
                     #print("abc", isinstance(prob, torch.Tensor))
                     #print(prob.shape)
@@ -185,9 +187,9 @@ def train_rl():
                         action = torch.zeros(opts['num_actions'])
                         action[10] = 1
                         index = torch.LongTensor([[10]])
-                        
                     else:
                         action, index = epsilon_greedy(prob, epsilon)
+                    prev_act = Variable(action.expand(1,11))
                     #print(index)
                     #exit()
                     #print("Action index: ", index.numpy()[0,0])
@@ -227,6 +229,11 @@ def train_rl():
 
                     if done:
                         break
+                    if current_iou < prev_iou:
+                        reward = -1
+                        break
+                    else:
+                       prev_iou = current_iou
                 print("action history: ", action_history)
                 print("overlap: {}, reward: {}".format(overlap_ratio(bbox.data.cpu().numpy(), gt.data.cpu().numpy()), reward))
                 #if reward == 1:

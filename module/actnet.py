@@ -124,13 +124,13 @@ class ActNetRL(nn.Module):
     def __init__(self, actnet, num_actions):
         super(ActNetRL, self).__init__()
         self.actnet = actnet
-        self.action_lstm = nn.LSTMCell(num_actions, 32)
-        self.actor_dense1 = nn.Linear(actnet.tf * 2 * 2 + 32, 100)
+        self.action_lstm = nn.LSTMCell(num_actions * 2, 128)
+        self.actor_dense1 = nn.Linear(actnet.tf * 2 * 2 + 128, 100)
         self.actor_dense1_act = nn.LeakyReLU()
         self.actor_dense2 = nn.Linear(100, 50)
         self.actor_dense2_act = nn.LeakyReLU()
         self.actor = nn.Linear(50, num_actions)
-        self.critic_dense1 = nn.Linear(actnet.tf * 2 * 2 + 32, 100)
+        self.critic_dense1 = nn.Linear(actnet.tf * 2 * 2 + 128, 100)
         self.critic_dense1_act = nn.LeakyReLU()
         self.critic_dense2 = nn.Linear(100, 50)
         self.critic_dense2_act = nn.LeakyReLU()
@@ -143,12 +143,12 @@ class ActNetRL(nn.Module):
 
     def init_hidden(self, num_examples, cuda = False):
                 
-                hx, cx = (autograd.Variable(torch.zeros(num_examples, 32), requires_grad=True), autograd.Variable(torch.zeros(num_examples, 32), requires_grad=True))
+                hx, cx = (autograd.Variable(torch.zeros(num_examples, 128), requires_grad=True), autograd.Variable(torch.zeros(num_examples, 128), requires_grad=True))
                 if cuda:
                     hx, cx = hx.cuda(), cx.cuda()
-                self.hidden = (hx, cx)
+                self.hidden = (hx, cx) 
 
-    def forward(self, x, act_prob):
+    def forward(self, x, act_prob, act):
 
         x = self.actnet.conv1(x)
         x = self.actnet.conv1_act(x)
@@ -166,7 +166,8 @@ class ActNetRL(nn.Module):
         x = self.actnet.conv5_act(x)
 
         # actor-critic
-        hx, cx = self.action_lstm(act_prob, self.hidden)
+        hid_input = torch.cat([act_prob, act], dim=1)
+        hx, cx = self.action_lstm(hid_input, self.hidden)
         x = x.view(-1, self.actnet.tf * 2 * 2)
         x = torch.cat([x, hx], dim = 1)
         first = x.clone()
@@ -174,8 +175,9 @@ class ActNetRL(nn.Module):
         actor = self.actor_dense1_act(actor)
         actor = self.actor_dense2(actor)
         actor = self.actor_dense2_act(actor)
+        actor = nn.Sigmoid()(actor)
         actor = self.actor(actor)
-        actor = torch.clamp(actor, 1e-10, 1e+10)
+        #actor = torch.clamp(actor, 1e-2, 1e+2)
         critic = self.critic_dense1(x)
         critic = self.critic_dense1_act(critic)
         
